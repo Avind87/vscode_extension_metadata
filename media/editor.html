@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TurboVault Metadata Editor</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--vscode-font-family);
+            padding: 20px;
+            color: var(--vscode-foreground);
+            background-color: var(--vscode-editor-background);
+            margin: 0;
+        }
+
+        .header {
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--vscode-panel-border);
+            padding-bottom: 15px;
+        }
+
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+
+        .header p {
+            margin: 5px 0;
+            color: var(--vscode-descriptionForeground);
+            font-size: 12px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 8px 16px;
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        button:hover {
+            background-color: var(--vscode-button-hoverBackground);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button.secondary {
+            background-color: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+        }
+
+        button.secondary:hover {
+            background-color: var(--vscode-button-secondaryHoverBackground);
+        }
+
+        .filter-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: var(--vscode-editorWidget-background);
+            border: 1px solid var(--vscode-editorWidget-border);
+            border-radius: 4px;
+        }
+
+        .filter-section label {
+            margin-right: 15px;
+            font-weight: 500;
+        }
+
+        select {
+            padding: 6px 10px;
+            background-color: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 2px;
+            font-size: 13px;
+            margin-right: 20px;
+        }
+
+        .table-section {
+            margin-bottom: 30px;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: var(--vscode-list-activeSelectionBackground);
+            border-radius: 4px;
+        }
+
+        .table-header h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: var(--vscode-editor-background);
+        }
+
+        th, td {
+            border: 1px solid var(--vscode-panel-border);
+            padding: 8px 12px;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        th {
+            background-color: var(--vscode-editor-selectionBackground);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        tr:nth-child(even) {
+            background-color: var(--vscode-list-hoverBackground);
+        }
+
+        tr:hover {
+            background-color: var(--vscode-list-activeSelectionBackground);
+        }
+
+        select.column-type, input.order-input {
+            width: 100%;
+            padding: 4px;
+            background-color: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 2px;
+            font-size: 12px;
+        }
+
+        input.order-input {
+            width: 60px;
+            text-align: center;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--vscode-descriptionForeground);
+        }
+
+        .error {
+            padding: 15px;
+            background-color: var(--vscode-inputValidation-errorBackground);
+            border: 1px solid var(--vscode-inputValidation-errorBorder);
+            border-radius: 4px;
+            color: var(--vscode-errorForeground);
+            margin: 20px 0;
+        }
+
+        .column-name {
+            font-weight: 500;
+            font-family: var(--vscode-editor-font-family);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.has-value {
+            background-color: var(--vscode-testing-iconPassed);
+        }
+
+        .status-indicator.no-value {
+            background-color: var(--vscode-testing-iconQueued);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>TurboVault Metadata Editor</h1>
+        <p id="db-path">Database: Loading...</p>
+    </div>
+    
+    <div class="controls">
+        <button id="load-btn" onclick="loadMetadata()">Load Metadata</button>
+        <button id="save-btn" onclick="saveMetadata()" disabled>Save Metadata</button>
+        <button id="export-btn" onclick="exportCSV()" disabled class="secondary">Export to CSV</button>
+    </div>
+
+    <div id="error-container"></div>
+
+    <div id="content">
+        <div class="loading">Click "Load Metadata" to start</div>
+    </div>
+
+    <script>
+        const vscode = acquireVsCodeApi();
+        let currentMetadata = null;
+
+        // Update DB path
+        function updateDbPath(path) {
+            document.getElementById('db-path').textContent = `Database: ${path}`;
+        }
+
+        function loadMetadata() {
+            document.getElementById('load-btn').disabled = true;
+            document.getElementById('content').innerHTML = '<div class="loading">Loading metadata...</div>';
+            vscode.postMessage({ command: 'loadMetadata' });
+        }
+
+        function saveMetadata() {
+            const metadata = collectMetadata();
+            vscode.postMessage({ command: 'saveMetadata', data: metadata });
+        }
+
+        function exportCSV() {
+            const metadata = collectMetadata();
+            vscode.postMessage({ command: 'exportCSV', data: metadata });
+        }
+
+        function collectMetadata() {
+            // Collect all metadata from the UI
+            const tables = [];
+            const tableSections = document.querySelectorAll('.table-section');
+            
+            tableSections.forEach(section => {
+                const tableName = section.dataset.table;
+                const schemaName = section.dataset.schema;
+                const tableElement = section.querySelector('table');
+                const rows = tableElement.querySelectorAll('tbody tr');
+                
+                const columns = [];
+                rows.forEach(row => {
+                    const columnName = row.dataset.column;
+                    const columnTypeSelect = row.querySelector('.column-type');
+                    const orderInput = row.querySelector('.order-input');
+                    
+                    if (!columnTypeSelect || !orderInput) return;
+                    
+                    const columnType = columnTypeSelect.value;
+                    const order = parseInt(orderInput.value) || 0;
+                    const isBK = row.querySelector('.bk-checkbox')?.checked || false;
+                    const isHK = row.querySelector('.hk-checkbox')?.checked || false;
+                    const isHD = row.querySelector('.hd-checkbox')?.checked || false;
+                    
+                    // Determine final type (checkbox overrides dropdown if checked)
+                    let finalType = columnType;
+                    if (isBK) finalType = 'business_key';
+                    else if (isHK) finalType = 'hashkey';
+                    else if (isHD) finalType = 'hashdiff';
+                    
+                    columns.push({
+                        schema: schemaName,
+                        table: tableName,
+                        column: columnName,
+                        type: finalType,
+                        order: order
+                    });
+                });
+                
+                // Sort columns by order
+                columns.sort((a, b) => a.order - b.order);
+                
+                tables.push({
+                    schema: schemaName,
+                    table: tableName,
+                    columns: columns
+                });
+            });
+
+            return {
+                tables: tables,
+                timestamp: new Date().toISOString()
+            };
+        }
+
+        function displayMetadata(metadata) {
+            currentMetadata = metadata;
+            const container = document.getElementById('content');
+            
+            if (!metadata || metadata.length === 0) {
+                container.innerHTML = '<div class="loading">No tables found in database</div>';
+                return;
+            }
+
+            let html = '';
+            
+            metadata.forEach(tableMeta => {
+                const tableId = `${tableMeta.schema}_${tableMeta.table}`;
+                html += `
+                    <div class="table-section" data-schema="${tableMeta.schema}" data-table="${tableMeta.table}">
+                        <div class="table-header">
+                            <h2>${tableMeta.schema}.${tableMeta.table}</h2>
+                            <span>${tableMeta.columns.length} columns</span>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">Order</th>
+                                    <th>Column Name</th>
+                                    <th>Data Type</th>
+                                    <th style="width: 200px;">Column Type</th>
+                                    <th style="width: 150px;">Business Key</th>
+                                    <th style="width: 150px;">Hashkey</th>
+                                    <th style="width: 150px;">Hashdiff</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                tableMeta.columns.forEach((col, index) => {
+                    html += `
+                        <tr data-column="${col.column_name}">
+                            <td>
+                                <input type="number" class="order-input" value="${col.ordinal_position}" min="1" 
+                                    onchange="updateStatus(this)">
+                            </td>
+                            <td class="column-name">${col.column_name}</td>
+                            <td>${col.data_type}</td>
+                            <td>
+                                <select class="column-type" onchange="updateStatus(this)">
+                                    <option value="">None</option>
+                                    <option value="business_key">Business Key</option>
+                                    <option value="hashkey">Hashkey</option>
+                                    <option value="hashdiff">Hashdiff</option>
+                                    <option value="payload">Payload</option>
+                                    <option value="record_source">Record Source</option>
+                                    <option value="load_date">Load Date</option>
+                                </select>
+                            </td>
+                            <td>
+                                <input type="checkbox" class="bk-checkbox" onchange="updateStatus(this)">
+                            </td>
+                            <td>
+                                <input type="checkbox" class="hk-checkbox" onchange="updateStatus(this)">
+                            </td>
+                            <td>
+                                <input type="checkbox" class="hd-checkbox" onchange="updateStatus(this)">
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            document.getElementById('save-btn').disabled = false;
+            document.getElementById('export-btn').disabled = false;
+        }
+
+        function updateStatus(element) {
+            // Add visual feedback when values change
+            const row = element.closest('tr');
+            const hasValues = Array.from(row.querySelectorAll('select, input[type="number"]'))
+                .some(el => el.value && el.value !== '');
+            
+            // You can add status indicators here if needed
+        }
+
+        function showError(message) {
+            const container = document.getElementById('error-container');
+            container.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        function clearError() {
+            document.getElementById('error-container').innerHTML = '';
+        }
+
+        // Handle messages from extension
+        window.addEventListener('message', event => {
+            const message = event.data;
+            
+            switch (message.command) {
+                case 'metadataLoaded':
+                    clearError();
+                    displayMetadata(message.data);
+                    document.getElementById('load-btn').disabled = false;
+                    break;
+                case 'saveSuccess':
+                    vscode.postMessage({
+                        command: 'alert',
+                        text: 'Metadata saved successfully!'
+                    });
+                    break;
+                case 'exportSuccess':
+                    vscode.postMessage({
+                        command: 'alert',
+                        text: 'CSV files exported successfully!'
+                    });
+                    break;
+                case 'error':
+                    showError('Error: ' + message.error);
+                    document.getElementById('load-btn').disabled = false;
+                    break;
+            }
+        });
+
+        // Handle DB path update
+        window.addEventListener('message', event => {
+            const message = event.data;
+            if (message.command === 'dbPath') {
+                updateDbPath(message.path);
+            }
+        });
+
+        // Initialize
+        vscode.postMessage({ command: 'ready' });
+    </script>
+</body>
+</html>
+

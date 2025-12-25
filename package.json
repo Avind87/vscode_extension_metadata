@@ -1,0 +1,53 @@
+{
+  "name": "metadata-frontend",
+  "displayName": "TurboVault Metadata Editor",
+  "description": "Visual editor for TurboVault metadata - categorize columns, set business keys, hashkeys, hashdiffs, and export to CSV",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:metadata-frontend.openEditor"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "metadata-frontend.openEditor",
+        "title": "Open TurboVault Metadata Editor",
+        "icon": "$(database)"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "metadata-frontend.openEditor",
+          "when": "resourceExtname == .duckdb",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.27",
+    "@types/vscode": "^1.107.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.9.3"
+  },
+  "optionalDependencies": {
+    "duckdb": "^0.9.0"
+  }
+}
