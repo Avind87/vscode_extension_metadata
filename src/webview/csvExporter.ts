@@ -3,6 +3,15 @@
  * Converts metadata editor data to TurboVault CSV format
  */
 
+export interface BusinessKeyGroup {
+    hashkeyName: string;
+    businessConcept?: string; // Business concept for this hashkey
+    columns: string[]; // Column names in order
+    order: number; // Order within the table
+    isLink?: boolean; // Whether this is a link hashkey (references other hashkeys)
+    referencedHashkeys?: string[]; // For link hashkeys: array of hashkey names from other tables
+}
+
 export interface ColumnMetadata {
     schema: string;
     table: string;
@@ -10,8 +19,11 @@ export interface ColumnMetadata {
     type: string;
     order: number;
     isBusinessKey?: boolean;
-    isHashkey?: boolean;
+    businessKeyGroup?: string; // Hashkey name this column belongs to
+    hashkeyName?: string; // Named hashkey (if this column is a hashkey)
+    isHashkey?: boolean; // Whether this column is a hashkey
     isHashdiff?: boolean;
+    hashdiffName?: string; // Named hashdiff
     isPayload?: boolean;
     isRecordSource?: boolean;
     isLoadDate?: boolean;
@@ -20,6 +32,8 @@ export interface ColumnMetadata {
 export interface TableMetadata {
     schema: string;
     table: string;
+    businessConcept?: string; // Business concept (Customer, Order, etc.)
+    businessKeyGroups?: BusinessKeyGroup[]; // Groups of business keys with hashkey names
     columns: ColumnMetadata[];
 }
 
@@ -41,8 +55,8 @@ export class CSVExporter {
         ];
 
         const rows = tables.map(table => {
-            const recordSourceCol = table.columns.find(c => c.isRecordSource)?.column || 'rsrc';
-            const loadDateCol = table.columns.find(c => c.isLoadDate)?.column || 'load_date';
+            const recordSourceCol = table.columns.find(c => c.isRecordSource)?.column || '';
+            const loadDateCol = table.columns.find(c => c.isLoadDate)?.column || '';
             const sourceSystem = this.extractSourceSystem(table.schema, table.table);
             const sourceObject = this.extractSourceObject(table.schema, table.table);
             
@@ -82,31 +96,62 @@ export class CSVExporter {
         const rows: string[][] = [];
 
         tables.forEach(table => {
-            const businessKeys = table.columns.filter(c => c.isBusinessKey);
-            
-            if (businessKeys.length === 0) {
-                return; // Skip tables without business keys
-            }
+            // Use business key groups if available, otherwise fall back to individual business keys
+            if (table.businessKeyGroups && table.businessKeyGroups.length > 0) {
+                // Filter out link hashkeys (they go to standard_link.csv)
+                const nonLinkGroups = table.businessKeyGroups.filter(g => !g.isLink);
+                
+                nonLinkGroups.forEach((group, groupIndex) => {
+                    const hubName = this.generateHubName(table.table, table.businessConcept);
+                    const hubIdentifier = `H_${hubName}`;
+                    const hashkey = group.hashkeyName || `hk_${hubName}`;
+                    const sourceIdentifier = `${this.extractSourceSystem(table.schema, table.table)}_${this.extractSourceObject(table.schema, table.table)}_${table.table}`;
+                    
+                    // Each column in the business key group gets a row
+                    group.columns.forEach((columnName, colIndex) => {
+                        const column = table.columns.find(c => c.column === columnName);
+                        rows.push([
+                            hubIdentifier,
+                            hubName,
+                            sourceIdentifier,
+                            columnName,
+                            columnName,
+                            String(colIndex + 1), // Order within the group
+                            hashkey,
+                            '',
+                            groupIndex === 0 && colIndex === 0 ? '1' : '0', // First group, first column is primary
+                            this.extractGroupName(table.schema)
+                        ]);
+                    });
+                });
+            } else {
+                // Fallback to old behavior for backward compatibility
+                const businessKeys = table.columns.filter(c => c.isBusinessKey);
+                
+                if (businessKeys.length === 0) {
+                    return; // Skip tables without business keys
+                }
 
-            const hubName = this.generateHubName(table.table);
-            const hubIdentifier = `H_${hubName}`;
-            const hashkey = `hk_${hubName}`;
-            const sourceIdentifier = `${this.extractSourceSystem(table.schema, table.table)}_${this.extractSourceObject(table.schema, table.table)}_${table.table}`;
-            
-            businessKeys.forEach((bk, index) => {
-                rows.push([
-                    hubIdentifier,
-                    hubName,
-                    sourceIdentifier,
-                    bk.column,
-                    bk.column,
-                    String(bk.order || index + 1),
-                    hashkey,
-                    '',
-                    index === 0 ? '1' : '0', // First business key is primary source
-                    this.extractGroupName(table.schema)
-                ]);
-            });
+                const hubName = this.generateHubName(table.table, table.businessConcept);
+                const hubIdentifier = `H_${hubName}`;
+                const hashkey = businessKeys[0].hashkeyName || `hk_${hubName}`;
+                const sourceIdentifier = `${this.extractSourceSystem(table.schema, table.table)}_${this.extractSourceObject(table.schema, table.table)}_${table.table}`;
+                
+                businessKeys.forEach((bk, index) => {
+                    rows.push([
+                        hubIdentifier,
+                        hubName,
+                        sourceIdentifier,
+                        bk.column,
+                        bk.column,
+                        String(bk.order || index + 1),
+                        hashkey,
+                        '',
+                        index === 0 ? '1' : '0',
+                        this.extractGroupName(table.schema)
+                    ]);
+                });
+            }
         });
 
         return this.arrayToCSV([headers, ...rows]);
@@ -131,19 +176,41 @@ export class CSVExporter {
         const rows: string[][] = [];
 
         tables.forEach(table => {
-            const payloadColumns = table.columns.filter(c => 
-                c.isPayload || (!c.isBusinessKey && !c.isHashkey && !c.isHashdiff && !c.isRecordSource && !c.isLoadDate)
-            );
+            // Get business key columns to exclude from payload
+            const businessKeyColumns = new Set<string>();
+            if (table.businessKeyGroups) {
+                table.businessKeyGroups.forEach(group => {
+                    group.columns.forEach(col => businessKeyColumns.add(col));
+                });
+            } else {
+                table.columns.filter(c => c.isBusinessKey).forEach(c => businessKeyColumns.add(c.column));
+            }
+
+            const payloadColumns = table.columns.filter(c => {
+                // Include if explicitly marked as payload
+                if (c.isPayload) return true;
+                // Exclude if it's a business key, hashkey, hashdiff, record source, or load date
+                if (c.isHashkey || c.isHashdiff || c.isRecordSource || c.isLoadDate) return false;
+                if (businessKeyColumns.has(c.column)) return false;
+                // Include everything else as payload
+                return true;
+            });
 
             if (payloadColumns.length === 0) {
                 return; // Skip tables without payload columns
             }
 
-            const hubName = this.generateHubName(table.table);
+            const hubName = this.generateHubName(table.table, table.businessConcept);
             const satelliteName = `${hubName}_sat`;
             const satelliteIdentifier = `S_${hubName}`;
             const parentIdentifier = `H_${hubName}`;
-            const parentHashkey = `hk_${hubName}`;
+            
+            // Get the hashkey from the first business key group, or default
+            let parentHashkey = `hk_${hubName}`;
+            if (table.businessKeyGroups && table.businessKeyGroups.length > 0) {
+                parentHashkey = table.businessKeyGroups[0].hashkeyName || parentHashkey;
+            }
+            
             const sourceIdentifier = `${this.extractSourceSystem(table.schema, table.table)}_${this.extractSourceObject(table.schema, table.table)}_${table.table}`;
 
             payloadColumns.forEach((col, index) => {
@@ -168,8 +235,6 @@ export class CSVExporter {
      * Convert table metadata to TurboVault standard_link.csv format
      */
     static exportStandardLink(tables: TableMetadata[]): string {
-        // Links are relationships between hubs, which requires understanding foreign keys
-        // For now, return empty CSV - this would need more complex logic
         const headers = [
             'Link_Identifier',
             'Target_link_table_physical_name',
@@ -182,10 +247,55 @@ export class CSVExporter {
             'Group_Name'
         ];
 
-        // TODO: Implement link generation logic
-        // This would require understanding foreign key relationships
-        
-        return this.arrayToCSV([headers]);
+        const rows: string[][] = [];
+
+        tables.forEach(table => {
+            // Find link hashkey groups
+            if (table.businessKeyGroups) {
+                const linkGroups = table.businessKeyGroups.filter(g => g.isLink);
+                
+                linkGroups.forEach((linkGroup, linkIndex) => {
+                    const linkName = linkGroup.hashkeyName || `lk_${table.table}_${linkIndex + 1}`;
+                    const linkIdentifier = `L_${linkName}`;
+                    const sourceIdentifier = `${this.extractSourceSystem(table.schema, table.table)}_${this.extractSourceObject(table.schema, table.table)}_${table.table}`;
+                    
+                    // Each referenced hashkey becomes a row in the link
+                    (linkGroup.referencedHashkeys || []).forEach((refHashkey, refIndex) => {
+                        // Find which table this hashkey belongs to
+                        let hubIdentifier = '';
+                        let hubName = '';
+                        
+                        tables.forEach(t => {
+                            if (t.businessKeyGroups) {
+                                const matchingGroup = t.businessKeyGroups.find(g => 
+                                    !g.isLink && g.hashkeyName === refHashkey
+                                );
+                                if (matchingGroup) {
+                                    hubName = this.generateHubName(t.table, t.businessConcept);
+                                    hubIdentifier = `H_${hubName}`;
+                                }
+                            }
+                        });
+                        
+                        if (hubIdentifier) {
+                            rows.push([
+                                linkIdentifier,
+                                linkName,
+                                sourceIdentifier,
+                                '', // Source column - not applicable for link hashkeys
+                                hubIdentifier,
+                                refHashkey,
+                                '', // Target column - not applicable
+                                linkGroup.hashkeyName || linkName,
+                                this.extractGroupName(table.schema)
+                            ]);
+                        }
+                    });
+                });
+            }
+        });
+
+        return this.arrayToCSV([headers, ...rows]);
     }
 
     /**
@@ -232,9 +342,13 @@ export class CSVExporter {
     }
 
     /**
-     * Helper: Generate hub name from table name
+     * Helper: Generate hub name from table name and business concept
      */
-    private static generateHubName(tableName: string): string {
+    private static generateHubName(tableName: string, businessConcept?: string): string {
+        if (businessConcept) {
+            // Use business concept for hub name (e.g., 'Customer' -> 'customer_h')
+            return `${businessConcept.toLowerCase()}_h`;
+        }
         // Remove prefixes like 'stg_', 'rv_', etc.
         const cleaned = tableName.replace(/^(stg_|rv_|hub_)/i, '');
         // Convert to hub naming convention (e.g., 'product_master' -> 'product_h')

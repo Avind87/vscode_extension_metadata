@@ -185,19 +185,21 @@ export class MetadataEditorPanel {
                 schema: col.schema || table.schema,
                 table: col.table || table.table,
                 column: col.column,
-                type: col.type || '',
+                type: '', // Column type is now determined by where it's used
                 order: col.order || 0,
-                isBusinessKey: col.type === 'business_key',
-                isHashkey: col.type === 'hashkey',
-                isHashdiff: col.type === 'hashdiff',
-                isPayload: col.type === 'payload',
-                isRecordSource: col.type === 'record_source',
-                isLoadDate: col.type === 'load_date'
+                isBusinessKey: !!col.businessKeyGroup,
+                businessKeyGroup: col.businessKeyGroup || undefined,
+                isHashdiff: false, // Hashdiff is determined by default logic
+                isPayload: !col.businessKeyGroup && !col.isRecordSource && !col.isLoadDate,
+                isRecordSource: col.isRecordSource || false,
+                isLoadDate: col.isLoadDate || false
             }));
 
             return {
                 schema: table.schema,
                 table: table.table,
+                businessConcept: table.businessConcept || undefined,
+                businessKeyGroups: table.businessKeyGroups || undefined,
                 columns: columns
             };
         });

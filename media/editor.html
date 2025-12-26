@@ -68,31 +68,30 @@
             background-color: var(--vscode-button-secondaryHoverBackground);
         }
 
-        .filter-section {
+        .table-navigation {
             margin-bottom: 20px;
             padding: 15px;
             background-color: var(--vscode-editorWidget-background);
             border: 1px solid var(--vscode-editorWidget-border);
             border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
-        .filter-section label {
-            margin-right: 15px;
-            font-weight: 500;
-        }
-
-        select {
-            padding: 6px 10px;
-            background-color: var(--vscode-input-background);
-            color: var(--vscode-input-foreground);
-            border: 1px solid var(--vscode-input-border);
-            border-radius: 2px;
-            font-size: 13px;
-            margin-right: 20px;
+        .table-navigation select {
+            flex: 1;
+            min-width: 200px;
         }
 
         .table-section {
             margin-bottom: 30px;
+            display: none;
+        }
+
+        .table-section.active {
+            display: block;
         }
 
         .table-header {
@@ -108,6 +107,190 @@
         .table-header h2 {
             margin: 0;
             font-size: 18px;
+        }
+
+        .business-concept-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: var(--vscode-editorWidget-background);
+            border: 1px solid var(--vscode-editorWidget-border);
+            border-radius: 4px;
+        }
+
+        .business-concept-selector label {
+            font-weight: 500;
+            margin-right: 5px;
+        }
+
+        .hashkey-management {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: var(--vscode-editorWidget-background);
+            border: 1px solid var(--vscode-editorWidget-border);
+            border-radius: 4px;
+        }
+
+        .hashkey-list {
+            margin-top: 10px;
+        }
+
+        .hashkey-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 8px;
+            background-color: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 4px;
+            cursor: move;
+        }
+
+        .hashkey-item.dragging {
+            opacity: 0.5;
+        }
+
+        .hashkey-item .drag-handle {
+            cursor: move;
+            color: var(--vscode-descriptionForeground);
+            font-size: 18px;
+            user-select: none;
+        }
+
+        .hashkey-item .move-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .hashkey-item .move-buttons button {
+            padding: 2px 6px;
+            font-size: 10px;
+            line-height: 1;
+        }
+
+        .hashkey-item input[type="text"] {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .hashkey-item .column-list {
+            flex: 2;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .hashkey-item.link-hashkey {
+            border-left: 3px solid var(--vscode-textLink-foreground);
+        }
+
+        .column-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 8px;
+            background-color: var(--vscode-button-secondaryBackground);
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .column-tag .remove-btn {
+            background: none;
+            border: none;
+            color: var(--vscode-foreground);
+            cursor: pointer;
+            padding: 0;
+            font-size: 14px;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .technical-columns {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: var(--vscode-editorWidget-background);
+            border: 1px solid var(--vscode-editorWidget-border);
+            border-radius: 4px;
+        }
+
+        .technical-column-group {
+            margin-bottom: 10px;
+        }
+
+        .technical-column-group label {
+            font-weight: 500;
+            margin-right: 10px;
+            display: inline-block;
+            min-width: 120px;
+        }
+
+        .hashdiff-management {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: var(--vscode-editorWidget-background);
+            border: 1px solid var(--vscode-editorWidget-border);
+            border-radius: 4px;
+        }
+
+        .hashdiff-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 4px;
+        }
+
+        .hashdiff-mode-selector {
+            margin-bottom: 10px;
+        }
+
+        .hashdiff-exclude-list, .hashdiff-include-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .add-concept-input {
+            display: inline-flex;
+            gap: 5px;
+            margin-left: 10px;
+        }
+
+        .add-concept-input input {
+            width: 150px;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background-color: var(--vscode-editor-background);
+            padding: 20px;
+            border-radius: 4px;
+            min-width: 300px;
+            max-width: 500px;
         }
 
         table {
@@ -139,19 +322,15 @@
             background-color: var(--vscode-list-activeSelectionBackground);
         }
 
-        select.column-type, input.order-input {
-            width: 100%;
-            padding: 4px;
-            background-color: var(--vscode-input-background);
-            color: var(--vscode-input-foreground);
-            border: 1px solid var(--vscode-input-border);
-            border-radius: 2px;
-            font-size: 12px;
+        .column-name {
+            font-weight: 500;
+            font-family: var(--vscode-editor-font-family);
         }
 
-        input.order-input {
-            width: 60px;
-            text-align: center;
+        .contained-in-hash {
+            font-family: var(--vscode-editor-font-family);
+            font-size: 12px;
+            color: var(--vscode-textLink-foreground);
         }
 
         .loading {
@@ -169,25 +348,13 @@
             margin: 20px 0;
         }
 
-        .column-name {
-            font-weight: 500;
-            font-family: var(--vscode-editor-font-family);
-        }
-
-        .status-indicator {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-
-        .status-indicator.has-value {
-            background-color: var(--vscode-testing-iconPassed);
-        }
-
-        .status-indicator.no-value {
-            background-color: var(--vscode-testing-iconQueued);
+        select, input[type="text"] {
+            padding: 6px 10px;
+            background-color: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 2px;
+            font-size: 13px;
         }
     </style>
 </head>
@@ -205,6 +372,24 @@
 
     <div id="error-container"></div>
 
+    <div id="table-navigation" style="display: none;" class="table-navigation">
+        <label>Navigate to table:</label>
+        <select id="table-selector" onchange="navigateToTable(this.value)">
+            <option value="">-- Select Table --</option>
+        </select>
+        <button onclick="sortHashkeysAlphabetically()" style="padding: 4px 8px; font-size: 11px;">Sort Hashkeys A-Z</button>
+        <button onclick="compareHashkeysWithOtherTables()" style="padding: 4px 8px; font-size: 11px;">Compare Hashkeys</button>
+        <button onclick="showGlobalHashkeyView()" style="padding: 4px 8px; font-size: 11px;">Global Hashkey View</button>
+    </div>
+
+    <div id="global-hashkey-view" style="display: none; margin-bottom: 20px; padding: 15px; background-color: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-editorWidget-border); border-radius: 4px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0;">Global Hashkey View</h3>
+            <button onclick="hideGlobalHashkeyView()" style="padding: 4px 8px; font-size: 11px;">Close</button>
+        </div>
+        <div id="global-hashkey-content"></div>
+    </div>
+
     <div id="content">
         <div class="loading">Click "Load Metadata" to start</div>
     </div>
@@ -212,8 +397,16 @@
     <script>
         const vscode = acquireVsCodeApi();
         let currentMetadata = null;
+        let businessConcepts = ['Customer', 'Order', 'Product', 'Supplier', 'Employee', 'Location'];
+        let allBusinessKeyGroups = {}; // tableId -> array of business key groups
+        let allHashkeys = {}; // tableId -> set of hashkey names
+        let recordSourceColumns = {}; // tableId -> column name
+        let loadDateColumns = {}; // tableId -> column name
+        let hashdiffGroups = {}; // tableId -> array of hashdiff groups
+        let currentTableId = null;
+        let draggedHashkeyIndex = null;
+        let newConceptInputs = {}; // tableId -> input element for new concept
 
-        // Update DB path
         function updateDbPath(path) {
             document.getElementById('db-path').textContent = `Database: ${path}`;
         }
@@ -234,52 +427,674 @@
             vscode.postMessage({ command: 'exportCSV', data: metadata });
         }
 
+        function navigateToTable(tableId) {
+            if (!tableId) return;
+            
+            // Hide all tables
+            document.querySelectorAll('.table-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Show selected table
+            const targetSection = document.querySelector(`[data-table-id="${tableId}"]`);
+            if (targetSection) {
+                targetSection.classList.add('active');
+                currentTableId = tableId;
+                targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function getAllHashkeys() {
+            const hashkeys = new Set();
+            Object.values(allBusinessKeyGroups).forEach(groups => {
+                groups.forEach(group => {
+                    if (!group.isLink) {
+                        hashkeys.add(group.hashkeyName);
+                    }
+                });
+            });
+            return Array.from(hashkeys).sort();
+        }
+
+        function sortHashkeysAlphabetically() {
+            if (!currentTableId) return;
+            const groups = allBusinessKeyGroups[currentTableId] || [];
+            groups.sort((a, b) => a.hashkeyName.localeCompare(b.hashkeyName));
+            groups.forEach((group, idx) => {
+                group.order = idx + 1;
+            });
+            renderHashkeyManagement(currentTableId);
+            updateColumnDisplay(currentTableId);
+        }
+
+        function compareHashkeysWithOtherTables() {
+            if (!currentTableId) return;
+            const currentHashkeys = (allBusinessKeyGroups[currentTableId] || [])
+                .filter(g => !g.isLink)
+                .map(g => g.hashkeyName)
+                .sort();
+            
+            const otherHashkeys = {};
+            Object.keys(allBusinessKeyGroups).forEach(tableId => {
+                if (tableId !== currentTableId) {
+                    const hashkeys = (allBusinessKeyGroups[tableId] || [])
+                        .filter(g => !g.isLink)
+                        .map(g => g.hashkeyName)
+                        .sort();
+                    if (hashkeys.length > 0) {
+                        otherHashkeys[tableId] = hashkeys;
+                    }
+                }
+            });
+
+            let message = `Current table hashkeys:\n${currentHashkeys.join(', ')}\n\n`;
+            message += `Hashkeys in other tables:\n`;
+            Object.keys(otherHashkeys).forEach(tableId => {
+                message += `\n${tableId}:\n  ${otherHashkeys[tableId].join(', ')}\n`;
+            });
+
+            alert(message);
+        }
+
+        function addBusinessConcept(tableId, inputElement) {
+            const concept = inputElement ? inputElement.value.trim() : '';
+            if (concept && !businessConcepts.includes(concept)) {
+                businessConcepts.push(concept);
+                businessConcepts.sort();
+                refreshAllConceptSelectors();
+                if (inputElement) {
+                    inputElement.value = '';
+                }
+                // If called from hashkey creation, update the hashkey concept selector
+                if (tableId) {
+                    const hashkeySelect = document.querySelector(`[data-table-id="${tableId}"] .hashkey-concept-select`);
+                    if (hashkeySelect) {
+                        hashkeySelect.innerHTML = '<option value="">-- Select Concept --</option>' +
+                            businessConcepts.map(c => `<option value="${c}">${c}</option>`).join('');
+                    }
+                }
+            }
+        }
+
+        function refreshAllConceptSelectors() {
+            document.querySelectorAll('.business-concept-select, .hashkey-concept-select').forEach(select => {
+                const currentValue = select.value;
+                select.innerHTML = '<option value="">-- Select Concept --</option>' +
+                    businessConcepts.map(c => `<option value="${c}">${c}</option>`).join('');
+                if (currentValue) select.value = currentValue;
+            });
+        }
+
+        function addHashkeyGroup(tableId, isLink = false) {
+            if (!allBusinessKeyGroups[tableId]) {
+                allBusinessKeyGroups[tableId] = [];
+            }
+            const groups = allBusinessKeyGroups[tableId];
+            const newGroup = {
+                hashkeyName: '', // Will be auto-generated from business concept
+                businessConcept: '', // Business concept for this hashkey
+                columns: [],
+                order: groups.length + 1,
+                isLink: isLink,
+                referencedHashkeys: isLink ? [] : undefined
+            };
+            groups.push(newGroup);
+            renderHashkeyManagement(tableId);
+        }
+
+        function updateHashkeyBusinessConcept(tableId, index, concept) {
+            if (allBusinessKeyGroups[tableId] && allBusinessKeyGroups[tableId][index]) {
+                const group = allBusinessKeyGroups[tableId][index];
+                group.businessConcept = concept;
+                // Auto-generate hashkey name: hk_{concept}_h
+                if (concept) {
+                    const conceptClean = concept.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                    group.hashkeyName = `hk_${conceptClean}_h`;
+                } else {
+                    group.hashkeyName = '';
+                }
+                renderHashkeyManagement(tableId);
+                updateColumnDisplay(tableId);
+            }
+        }
+
+        function removeHashkeyGroup(tableId, index) {
+            if (allBusinessKeyGroups[tableId]) {
+                allBusinessKeyGroups[tableId].splice(index, 1);
+                allBusinessKeyGroups[tableId].forEach((group, idx) => {
+                    group.order = idx + 1;
+                });
+                renderHashkeyManagement(tableId);
+                updateColumnDisplay(tableId);
+            }
+        }
+
+        function moveHashkeyUp(tableId, index) {
+            if (index > 0 && allBusinessKeyGroups[tableId]) {
+                const groups = allBusinessKeyGroups[tableId];
+                [groups[index - 1], groups[index]] = [groups[index], groups[index - 1]];
+                groups.forEach((group, idx) => {
+                    group.order = idx + 1;
+                });
+                renderHashkeyManagement(tableId);
+                updateColumnDisplay(tableId);
+            }
+        }
+
+        function moveHashkeyDown(tableId, index) {
+            if (allBusinessKeyGroups[tableId] && index < allBusinessKeyGroups[tableId].length - 1) {
+                const groups = allBusinessKeyGroups[tableId];
+                [groups[index], groups[index + 1]] = [groups[index + 1], groups[index]];
+                groups.forEach((group, idx) => {
+                    group.order = idx + 1;
+                });
+                renderHashkeyManagement(tableId);
+                updateColumnDisplay(tableId);
+            }
+        }
+
+        // Hashkey name is now auto-generated, so this function is not needed for regular hashkeys
+        // But we keep it for link hashkeys which can have custom names
+        function updateHashkeyName(tableId, index, newName) {
+            if (allBusinessKeyGroups[tableId] && allBusinessKeyGroups[tableId][index]) {
+                const group = allBusinessKeyGroups[tableId][index];
+                // Only allow manual editing for link hashkeys
+                if (group.isLink) {
+                    group.hashkeyName = newName;
+                    updateColumnDisplay(tableId);
+                }
+            }
+        }
+
+        function addColumnToHashkeyGroup(tableId, groupIndex, columnName) {
+            if (allBusinessKeyGroups[tableId] && allBusinessKeyGroups[tableId][groupIndex]) {
+                const group = allBusinessKeyGroups[tableId][groupIndex];
+                if (!group.columns.includes(columnName)) {
+                    group.columns.push(columnName);
+                    renderHashkeyManagement(tableId);
+                    updateColumnDisplay(tableId);
+                }
+            }
+        }
+
+        function removeColumnFromHashkeyGroup(tableId, groupIndex, columnName) {
+            if (allBusinessKeyGroups[tableId] && allBusinessKeyGroups[tableId][groupIndex]) {
+                const group = allBusinessKeyGroups[tableId][groupIndex];
+                const index = group.columns.indexOf(columnName);
+                if (index > -1) {
+                    group.columns.splice(index, 1);
+                    renderHashkeyManagement(tableId);
+                    updateColumnDisplay(tableId);
+                }
+            }
+        }
+
+        function addReferencedHashkey(tableId, groupIndex, hashkeyName) {
+            if (allBusinessKeyGroups[tableId] && allBusinessKeyGroups[tableId][groupIndex]) {
+                const group = allBusinessKeyGroups[tableId][groupIndex];
+                if (!group.referencedHashkeys) {
+                    group.referencedHashkeys = [];
+                }
+                if (!group.referencedHashkeys.includes(hashkeyName)) {
+                    group.referencedHashkeys.push(hashkeyName);
+                    renderHashkeyManagement(tableId);
+                }
+            }
+        }
+
+        function removeReferencedHashkey(tableId, groupIndex, hashkeyName) {
+            if (allBusinessKeyGroups[tableId] && allBusinessKeyGroups[tableId][groupIndex]) {
+                const group = allBusinessKeyGroups[tableId][groupIndex];
+                if (group.referencedHashkeys) {
+                    const index = group.referencedHashkeys.indexOf(hashkeyName);
+                    if (index > -1) {
+                        group.referencedHashkeys.splice(index, 1);
+                        renderHashkeyManagement(tableId);
+                    }
+                }
+            }
+        }
+
+        function renderHashkeyManagement(tableId) {
+            const container = document.querySelector(`[data-table-id="${tableId}"] .hashkey-management`);
+            if (!container) return;
+
+            const groups = (allBusinessKeyGroups[tableId] || []).sort((a, b) => a.order - b.order);
+            const tableMeta = currentMetadata.find(m => `${m.schema}_${m.table}` === tableId);
+            const availableColumns = tableMeta ? tableMeta.columns.map(c => c.column_name) : [];
+            const allHashkeysList = getAllHashkeys();
+
+            let html = '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">';
+            html += '<strong>Hashkeys</strong>';
+            html += '<div style="display: flex; gap: 5px;">';
+            html += `<button onclick="addHashkeyGroup('${tableId}', false)" style="padding: 4px 8px; font-size: 11px;">+ Add Hashkey</button>`;
+            html += `<button onclick="addHashkeyGroup('${tableId}', true)" style="padding: 4px 8px; font-size: 11px;">+ Add Link Hashkey</button>`;
+            html += '</div>';
+            html += '</div>';
+
+            html += '<div class="hashkey-list">';
+            groups.forEach((group, index) => {
+                const isLink = group.isLink || false;
+                html += `<div class="hashkey-item ${isLink ? 'link-hashkey' : ''}" draggable="true" 
+                         ondragstart="handleHashkeyDragStart(event, ${index})" 
+                         ondragover="handleHashkeyDragOver(event)" 
+                         ondragleave="handleHashkeyDragLeave(event)"
+                         ondrop="handleHashkeyDrop(event, '${tableId}', ${index})"
+                         ondragend="handleHashkeyDragEnd(event)">`;
+                
+                html += '<div class="move-buttons">';
+                html += `<button onclick="moveHashkeyUp('${tableId}', ${index})" ${index === 0 ? 'disabled' : ''}>↑</button>`;
+                html += `<button onclick="moveHashkeyDown('${tableId}', ${index})" ${index === groups.length - 1 ? 'disabled' : ''}>↓</button>`;
+                html += '</div>';
+
+                html += '<span class="drag-handle">☰</span>';
+
+                if (isLink) {
+                    html += `<input type="text" value="${group.hashkeyName}" placeholder="Link hashkey name" 
+                             onchange="updateHashkeyName('${tableId}', ${index}, this.value)" 
+                             style="min-width: 200px;">`;
+                    html += '<span>→</span>';
+                    html += '<div class="column-list">';
+                    (group.referencedHashkeys || []).forEach(hk => {
+                        html += `<span class="column-tag">${hk} <button class="remove-btn" onclick="removeReferencedHashkey('${tableId}', ${index}, '${hk}')">×</button></span>`;
+                    });
+                    html += `<select onchange="if(this.value) { addReferencedHashkey('${tableId}', ${index}, this.value); this.value=''; }" style="min-width: 150px;">
+                             <option value="">Add hashkey...</option>`;
+                    allHashkeysList.forEach(hk => {
+                        if (!group.referencedHashkeys || !group.referencedHashkeys.includes(hk)) {
+                            html += `<option value="${hk}">${hk}</option>`;
+                        }
+                    });
+                    html += '</select>';
+                } else {
+                    // Regular hashkey: use business concept dropdown
+                    html += '<div style="display: flex; align-items: center; gap: 10px; flex: 1;">';
+                    html += `<select class="hashkey-concept-select" onchange="updateHashkeyBusinessConcept('${tableId}', ${index}, this.value)" style="min-width: 200px;">
+                             <option value="">-- Select Business Concept --</option>`;
+                    businessConcepts.forEach(c => {
+                        html += `<option value="${c}" ${group.businessConcept === c ? 'selected' : ''}>${c}</option>`;
+                    });
+                    html += '</select>';
+                    html += '<div class="add-concept-input">';
+                    html += `<input type="text" placeholder="New concept..." id="new-concept-${tableId}-${index}" style="width: 150px;">`;
+                    html += `<button onclick="addBusinessConcept('${tableId}', document.getElementById('new-concept-${tableId}-${index}'))" style="padding: 4px 8px; font-size: 11px;">+ Add</button>`;
+                    html += '</div>';
+                    html += '</div>';
+                    html += `<div style="color: var(--vscode-descriptionForeground); font-size: 11px; margin-left: 10px;">${group.hashkeyName || '(name will be auto-generated)'}</div>`;
+                    html += '<span>→</span>';
+                    html += '<div class="column-list">';
+                    group.columns.forEach(col => {
+                        html += `<span class="column-tag">${col} <button class="remove-btn" onclick="removeColumnFromHashkeyGroup('${tableId}', ${index}, '${col}')">×</button></span>`;
+                    });
+                    html += `<select onchange="if(this.value) { addColumnToHashkeyGroup('${tableId}', ${index}, this.value); this.value=''; }" style="min-width: 150px;">
+                             <option value="">Add column...</option>`;
+                    availableColumns.forEach(col => {
+                        if (!group.columns.includes(col)) {
+                            html += `<option value="${col}">${col}</option>`;
+                        }
+                    });
+                    html += '</select>';
+                    html += '</div>';
+                }
+                html += `<button onclick="removeHashkeyGroup('${tableId}', ${index})" style="padding: 4px 8px; font-size: 11px; margin-left: auto;">Remove</button>`;
+                html += '</div></div>';
+            });
+            html += '</div>';
+
+            container.innerHTML = html;
+        }
+
+        function handleHashkeyDragStart(event, index) {
+            draggedHashkeyIndex = index;
+            event.dataTransfer.effectAllowed = 'move';
+            event.currentTarget.classList.add('dragging');
+        }
+
+        function handleHashkeyDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            const target = event.currentTarget;
+            if (target && target !== event.target.closest('.hashkey-item')) {
+                target.style.borderTop = '2px solid var(--vscode-focusBorder)';
+            }
+        }
+
+        function handleHashkeyDragLeave(event) {
+            event.currentTarget.style.borderTop = '';
+        }
+
+        function handleHashkeyDrop(event, tableId, dropIndex) {
+            event.preventDefault();
+            event.currentTarget.style.borderTop = '';
+            
+            if (draggedHashkeyIndex === null || draggedHashkeyIndex === dropIndex) {
+                draggedHashkeyIndex = null;
+                return;
+            }
+            
+            const groups = allBusinessKeyGroups[tableId];
+            if (!groups || draggedHashkeyIndex >= groups.length) {
+                draggedHashkeyIndex = null;
+                return;
+            }
+            
+            const draggedGroup = groups[draggedHashkeyIndex];
+            groups.splice(draggedHashkeyIndex, 1);
+            
+            // Adjust drop index if we removed an item before it
+            const adjustedDropIndex = draggedHashkeyIndex < dropIndex ? dropIndex - 1 : dropIndex;
+            groups.splice(adjustedDropIndex, 0, draggedGroup);
+            
+            groups.forEach((group, idx) => {
+                group.order = idx + 1;
+            });
+            
+            draggedHashkeyIndex = null;
+            renderHashkeyManagement(tableId);
+            updateColumnDisplay(tableId);
+        }
+
+        function handleHashkeyDragEnd(event) {
+            event.currentTarget.classList.remove('dragging');
+            draggedHashkeyIndex = null;
+        }
+
+        function showGlobalHashkeyView() {
+            const view = document.getElementById('global-hashkey-view');
+            const content = document.getElementById('global-hashkey-content');
+            
+            let html = '<table style="width: 100%;"><thead><tr><th>Hashkey Name</th><th>Business Concept</th><th>Table</th><th>Columns</th><th>Actions</th></tr></thead><tbody>';
+            
+            Object.keys(allBusinessKeyGroups).forEach(tableId => {
+                const groups = allBusinessKeyGroups[tableId] || [];
+                const tableMeta = currentMetadata.find(m => `${m.schema}_${m.table}` === tableId);
+                const tableName = tableMeta ? `${tableMeta.schema}.${tableMeta.table}` : tableId;
+                
+                groups.filter(g => !g.isLink).forEach((group, index) => {
+                    html += '<tr>';
+                    html += `<td>${group.hashkeyName || '(not set)'}</td>`;
+                    html += `<td>${group.businessConcept || '(not set)'}</td>`;
+                    html += `<td>${tableName}</td>`;
+                    html += `<td>${group.columns.join(', ') || '(no columns)'}</td>`;
+                    html += `<td><button onclick="navigateToTable('${tableId}')" style="padding: 4px 8px; font-size: 11px;">Go to Table</button></td>`;
+                    html += '</tr>';
+                });
+            });
+            
+            html += '</tbody></table>';
+            content.innerHTML = html;
+            view.style.display = 'block';
+        }
+
+        function hideGlobalHashkeyView() {
+            document.getElementById('global-hashkey-view').style.display = 'none';
+        }
+
+        function setRecordSource(tableId, columnName) {
+            recordSourceColumns[tableId] = columnName;
+            updateColumnDisplay(tableId);
+        }
+
+        function setLoadDate(tableId, columnName) {
+            loadDateColumns[tableId] = columnName;
+            updateColumnDisplay(tableId);
+        }
+
+        function getColumnContainedIn(tableId, columnName) {
+            // Check if in hashkey group
+            const groups = allBusinessKeyGroups[tableId] || [];
+            for (const group of groups) {
+                if (group.columns.includes(columnName)) {
+                    return group.hashkeyName;
+                }
+            }
+            // Check if record source
+            if (recordSourceColumns[tableId] === columnName) {
+                return 'Record Source';
+            }
+            // Check if load date
+            if (loadDateColumns[tableId] === columnName) {
+                return 'Load Date';
+            }
+            // Check if in hashdiff
+            const hashdiffName = getColumnHashdiff(tableId, columnName);
+            if (hashdiffName) {
+                return hashdiffName;
+            }
+            return '';
+        }
+
+        function generateHashdiffName(schema, table) {
+            const schemaClean = schema.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            const tableClean = table.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            return `hd_${schemaClean}_${tableClean}_sat`;
+        }
+
+        function getDefaultHashdiffColumns(tableMeta) {
+            const businessKeyColumns = new Set();
+            const tableId = `${tableMeta.schema}_${tableMeta.table}`;
+            const bkGroups = allBusinessKeyGroups[tableId] || [];
+            bkGroups.forEach(group => {
+                group.columns.forEach(col => businessKeyColumns.add(col));
+            });
+            return tableMeta.columns.filter(col => {
+                return !businessKeyColumns.has(col.column_name) &&
+                       recordSourceColumns[tableId] !== col.column_name &&
+                       loadDateColumns[tableId] !== col.column_name;
+            }).map(col => col.column_name);
+        }
+
+        function addHashdiffGroup(tableId) {
+            if (!hashdiffGroups[tableId]) {
+                hashdiffGroups[tableId] = [];
+            }
+            const tableMeta = currentMetadata.find(m => `${m.schema}_${m.table}` === tableId);
+            const defaultName = tableMeta ? generateHashdiffName(tableMeta.schema, tableMeta.table) : 'hd_table_sat';
+            const newGroup = {
+                name: defaultName,
+                mode: 'select_all', // 'select_all' or 'select_explicit'
+                excludedColumns: [],
+                includedColumns: [],
+                order: hashdiffGroups[tableId].length + 1
+            };
+            hashdiffGroups[tableId].push(newGroup);
+            renderHashdiffManagement(tableId);
+            updateColumnDisplay(tableId);
+        }
+
+        function removeHashdiffGroup(tableId, index) {
+            if (hashdiffGroups[tableId]) {
+                hashdiffGroups[tableId].splice(index, 1);
+                renderHashdiffManagement(tableId);
+                updateColumnDisplay(tableId);
+            }
+        }
+
+        function updateHashdiffName(tableId, index, newName) {
+            if (hashdiffGroups[tableId] && hashdiffGroups[tableId][index]) {
+                hashdiffGroups[tableId][index].name = newName;
+                updateColumnDisplay(tableId);
+            }
+        }
+
+        function setHashdiffMode(tableId, index, mode) {
+            if (hashdiffGroups[tableId] && hashdiffGroups[tableId][index]) {
+                hashdiffGroups[tableId][index].mode = mode;
+                renderHashdiffManagement(tableId);
+                updateColumnDisplay(tableId);
+            }
+        }
+
+        function toggleHashdiffColumn(tableId, diffIndex, columnName, isExcluded) {
+            if (!hashdiffGroups[tableId] || !hashdiffGroups[tableId][diffIndex]) return;
+            const diff = hashdiffGroups[tableId][diffIndex];
+            const array = isExcluded ? diff.excludedColumns : diff.includedColumns;
+            const otherArray = isExcluded ? diff.includedColumns : diff.excludedColumns;
+            const index = array.indexOf(columnName);
+            if (index > -1) {
+                array.splice(index, 1);
+            } else {
+                array.push(columnName);
+                // Remove from other array if present
+                const otherIndex = otherArray.indexOf(columnName);
+                if (otherIndex > -1) {
+                    otherArray.splice(otherIndex, 1);
+                }
+            }
+            renderHashdiffManagement(tableId);
+            updateColumnDisplay(tableId);
+        }
+
+        function renderHashdiffManagement(tableId) {
+            const container = document.querySelector(`[data-table-id="${tableId}"] .hashdiff-management`);
+            if (!container) return;
+
+            const diffs = hashdiffGroups[tableId] || [];
+            const tableMeta = currentMetadata.find(m => `${m.schema}_${m.table}` === tableId);
+            const availableColumns = tableMeta ? tableMeta.columns.map(c => c.column_name) : [];
+            const defaultName = tableMeta ? generateHashdiffName(tableMeta.schema, tableMeta.table) : 'hd_table_sat';
+
+            let html = '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
+            html += '<strong>Hashdiffs</strong>';
+            html += `<button onclick="addHashdiffGroup('${tableId}')" style="padding: 4px 8px; font-size: 11px;">+ Add Hashdiff</button>`;
+            html += '</div>';
+
+            diffs.forEach((diff, index) => {
+                html += '<div class="hashdiff-item">';
+                html += `<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">`;
+                html += `<input type="text" value="${diff.name}" placeholder="${defaultName}" 
+                         onchange="updateHashdiffName('${tableId}', ${index}, this.value)" 
+                         style="min-width: 250px;">`;
+                html += `<button onclick="removeHashdiffGroup('${tableId}', ${index})" style="padding: 4px 8px; font-size: 11px;">Remove</button>`;
+                html += '</div>';
+                
+                html += '<div class="hashdiff-mode-selector">';
+                html += `<label><input type="radio" name="hashdiff-mode-${tableId}-${index}" value="select_all" 
+                         ${diff.mode === 'select_all' ? 'checked' : ''} 
+                         onchange="setHashdiffMode('${tableId}', ${index}, 'select_all')"> Select All (exclude specific)</label>`;
+                html += `<label style="margin-left: 20px;"><input type="radio" name="hashdiff-mode-${tableId}-${index}" value="select_explicit" 
+                         ${diff.mode === 'select_explicit' ? 'checked' : ''} 
+                         onchange="setHashdiffMode('${tableId}', ${index}, 'select_explicit')"> Select Explicit Columns</label>`;
+                html += '</div>';
+
+                if (diff.mode === 'select_all') {
+                    html += '<div style="margin-top: 10px;"><strong>Exclude columns:</strong></div>';
+                    html += '<div class="hashdiff-exclude-list">';
+                    diff.excludedColumns.forEach(col => {
+                        html += `<span class="column-tag">${col} <button class="remove-btn" onclick="toggleHashdiffColumn('${tableId}', ${index}, '${col}', true)">×</button></span>`;
+                    });
+                    html += `<select onchange="if(this.value) { toggleHashdiffColumn('${tableId}', ${index}, this.value, true); this.value=''; }" style="min-width: 150px;">
+                             <option value="">Add to exclude...</option>`;
+                    availableColumns.forEach(col => {
+                        if (!diff.excludedColumns.includes(col)) {
+                            html += `<option value="${col}">${col}</option>`;
+                        }
+                    });
+                    html += '</select>';
+                    html += '</div>';
+                } else {
+                    html += '<div style="margin-top: 10px;"><strong>Include columns:</strong></div>';
+                    html += '<div class="hashdiff-include-list">';
+                    diff.includedColumns.forEach(col => {
+                        html += `<span class="column-tag">${col} <button class="remove-btn" onclick="toggleHashdiffColumn('${tableId}', ${index}, '${col}', false)">×</button></span>`;
+                    });
+                    html += `<select onchange="if(this.value) { toggleHashdiffColumn('${tableId}', ${index}, this.value, false); this.value=''; }" style="min-width: 150px;">
+                             <option value="">Add to include...</option>`;
+                    availableColumns.forEach(col => {
+                        if (!diff.includedColumns.includes(col)) {
+                            html += `<option value="${col}">${col}</option>`;
+                        }
+                    });
+                    html += '</select>';
+                    html += '</div>';
+                }
+                html += '</div>';
+            });
+
+            container.innerHTML = html;
+        }
+
+        function getColumnHashdiff(tableId, columnName) {
+            const diffs = hashdiffGroups[tableId] || [];
+            for (const diff of diffs) {
+                if (diff.mode === 'select_all') {
+                    // Include if not in excluded list
+                    if (!diff.excludedColumns.includes(columnName)) {
+                        return diff.name;
+                    }
+                } else {
+                    // Include if in included list
+                    if (diff.includedColumns.includes(columnName)) {
+                        return diff.name;
+                    }
+                }
+            }
+            return '';
+        }
+
+        function updateColumnDisplay(tableId) {
+            const tableSection = document.querySelector(`[data-table-id="${tableId}"]`);
+            if (!tableSection) return;
+            
+            const tbody = tableSection.querySelector('tbody');
+            if (!tbody) return;
+
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach(row => {
+                const columnName = row.dataset.column;
+                const containedInCell = row.querySelector('.contained-in-hash');
+                if (containedInCell) {
+                    const containedIn = getColumnContainedIn(tableId, columnName);
+                    containedInCell.textContent = containedIn || '';
+                }
+            });
+        }
+
         function collectMetadata() {
-            // Collect all metadata from the UI
             const tables = [];
             const tableSections = document.querySelectorAll('.table-section');
             
             tableSections.forEach(section => {
                 const tableName = section.dataset.table;
                 const schemaName = section.dataset.schema;
-                const tableElement = section.querySelector('table');
-                const rows = tableElement.querySelectorAll('tbody tr');
+                const tableId = `${schemaName}_${tableName}`;
+                const rows = section.querySelectorAll('tbody tr');
+                
+                const businessConcept = section.querySelector('.business-concept-select')?.value || '';
+                const businessKeyGroups = (allBusinessKeyGroups[tableId] || []).sort((a, b) => a.order - b.order);
+                const hashdiffGroupsData = hashdiffGroups[tableId] || [];
                 
                 const columns = [];
                 rows.forEach(row => {
                     const columnName = row.dataset.column;
-                    const columnTypeSelect = row.querySelector('.column-type');
-                    const orderInput = row.querySelector('.order-input');
+                    const order = parseInt(row.querySelector('.order-input')?.value) || 0;
                     
-                    if (!columnTypeSelect || !orderInput) return;
-                    
-                    const columnType = columnTypeSelect.value;
-                    const order = parseInt(orderInput.value) || 0;
-                    const isBK = row.querySelector('.bk-checkbox')?.checked || false;
-                    const isHK = row.querySelector('.hk-checkbox')?.checked || false;
-                    const isHD = row.querySelector('.hd-checkbox')?.checked || false;
-                    
-                    // Determine final type (checkbox overrides dropdown if checked)
-                    let finalType = columnType;
-                    if (isBK) finalType = 'business_key';
-                    else if (isHK) finalType = 'hashkey';
-                    else if (isHD) finalType = 'hashdiff';
+                    let businessKeyGroup = '';
+                    businessKeyGroups.forEach(group => {
+                        if (group.columns.includes(columnName)) {
+                            businessKeyGroup = group.hashkeyName;
+                        }
+                    });
                     
                     columns.push({
                         schema: schemaName,
                         table: tableName,
                         column: columnName,
-                        type: finalType,
-                        order: order
+                        order: order,
+                        businessKeyGroup: businessKeyGroup,
+                        isRecordSource: recordSourceColumns[tableId] === columnName,
+                        isLoadDate: loadDateColumns[tableId] === columnName
                     });
                 });
                 
-                // Sort columns by order
                 columns.sort((a, b) => a.order - b.order);
                 
                 tables.push({
                     schema: schemaName,
                     table: tableName,
+                    businessConcept: businessConcept,
+                    businessKeyGroups: businessKeyGroups,
+                    hashdiffGroups: hashdiffGroupsData,
                     columns: columns
                 });
             });
@@ -299,15 +1114,78 @@
                 return;
             }
 
-            let html = '';
-            
+            // Initialize business key groups for each table
             metadata.forEach(tableMeta => {
                 const tableId = `${tableMeta.schema}_${tableMeta.table}`;
+                if (!allBusinessKeyGroups[tableId]) {
+                    allBusinessKeyGroups[tableId] = [];
+                }
+                if (!recordSourceColumns[tableId]) {
+                    recordSourceColumns[tableId] = '';
+                }
+                if (!loadDateColumns[tableId]) {
+                    loadDateColumns[tableId] = '';
+                }
+                if (!hashdiffGroups[tableId]) {
+                    hashdiffGroups[tableId] = [];
+                }
+            });
+
+            // Populate table navigation
+            const tableSelector = document.getElementById('table-selector');
+            tableSelector.innerHTML = '<option value="">-- Select Table --</option>' +
+                metadata.map(m => {
+                    const tableId = `${m.schema}_${m.table}`;
+                    return `<option value="${tableId}">${m.schema}.${m.table}</option>`;
+                }).join('');
+            document.getElementById('table-navigation').style.display = 'flex';
+
+            let html = '';
+            
+            metadata.forEach((tableMeta, metaIndex) => {
+                const tableId = `${tableMeta.schema}_${tableMeta.table}`;
+                const isFirst = metaIndex === 0;
+                
                 html += `
-                    <div class="table-section" data-schema="${tableMeta.schema}" data-table="${tableMeta.table}">
+                    <div class="table-section ${isFirst ? 'active' : ''}" data-schema="${tableMeta.schema}" data-table="${tableMeta.table}" data-table-id="${tableId}">
                         <div class="table-header">
                             <h2>${tableMeta.schema}.${tableMeta.table}</h2>
                             <span>${tableMeta.columns.length} columns</span>
+                        </div>
+                        <div class="business-concept-selector">
+                            <label>Business Concept:</label>
+                            <select class="business-concept-select" onchange="updateStatus(this)">
+                                <option value="">-- Select Concept --</option>
+                                ${businessConcepts.map(c => 
+                                    `<option value="${c}">${c}</option>`
+                                ).join('')}
+                            </select>
+                            <div class="add-concept-input">
+                                <input type="text" placeholder="New concept..." id="new-table-concept-${tableId}" style="width: 150px;">
+                                <button onclick="addBusinessConcept('${tableId}', document.getElementById('new-table-concept-${tableId}'))" style="padding: 4px 8px; font-size: 11px;">+ Add</button>
+                            </div>
+                        </div>
+                        <div class="hashkey-management"></div>
+                        <div class="hashdiff-management"></div>
+                        <div class="technical-columns">
+                            <div class="technical-column-group">
+                                <label>Record Source:</label>
+                                <select onchange="setRecordSource('${tableId}', this.value)">
+                                    <option value="">-- Select Column --</option>
+                                    ${tableMeta.columns.map(c => 
+                                        `<option value="${c.column_name}" ${recordSourceColumns[tableId] === c.column_name ? 'selected' : ''}>${c.column_name}</option>`
+                                    ).join('')}
+                                </select>
+                            </div>
+                            <div class="technical-column-group">
+                                <label>Load Date:</label>
+                                <select onchange="setLoadDate('${tableId}', this.value)">
+                                    <option value="">-- Select Column --</option>
+                                    ${tableMeta.columns.map(c => 
+                                        `<option value="${c.column_name}" ${loadDateColumns[tableId] === c.column_name ? 'selected' : ''}>${c.column_name}</option>`
+                                    ).join('')}
+                                </select>
+                            </div>
                         </div>
                         <table>
                             <thead>
@@ -315,44 +1193,23 @@
                                     <th style="width: 50px;">Order</th>
                                     <th>Column Name</th>
                                     <th>Data Type</th>
-                                    <th style="width: 200px;">Column Type</th>
-                                    <th style="width: 150px;">Business Key</th>
-                                    <th style="width: 150px;">Hashkey</th>
-                                    <th style="width: 150px;">Hashdiff</th>
+                                    <th>Contained in Hash / Technical Column</th>
                                 </tr>
                             </thead>
                             <tbody>
                 `;
 
                 tableMeta.columns.forEach((col, index) => {
+                    const containedIn = getColumnContainedIn(tableId, col.column_name);
+                    
                     html += `
                         <tr data-column="${col.column_name}">
                             <td>
-                                <input type="number" class="order-input" value="${col.ordinal_position}" min="1" 
-                                    onchange="updateStatus(this)">
+                                <input type="number" class="order-input" value="${col.ordinal_position}" min="1" readonly>
                             </td>
                             <td class="column-name">${col.column_name}</td>
                             <td>${col.data_type}</td>
-                            <td>
-                                <select class="column-type" onchange="updateStatus(this)">
-                                    <option value="">None</option>
-                                    <option value="business_key">Business Key</option>
-                                    <option value="hashkey">Hashkey</option>
-                                    <option value="hashdiff">Hashdiff</option>
-                                    <option value="payload">Payload</option>
-                                    <option value="record_source">Record Source</option>
-                                    <option value="load_date">Load Date</option>
-                                </select>
-                            </td>
-                            <td>
-                                <input type="checkbox" class="bk-checkbox" onchange="updateStatus(this)">
-                            </td>
-                            <td>
-                                <input type="checkbox" class="hk-checkbox" onchange="updateStatus(this)">
-                            </td>
-                            <td>
-                                <input type="checkbox" class="hd-checkbox" onchange="updateStatus(this)">
-                            </td>
+                            <td class="contained-in-hash">${containedIn || ''}</td>
                         </tr>
                     `;
                 });
@@ -365,17 +1222,25 @@
             });
 
             container.innerHTML = html;
+            
+            // Render hashkey and hashdiff management for each table
+            metadata.forEach(tableMeta => {
+                const tableId = `${tableMeta.schema}_${tableMeta.table}`;
+                renderHashkeyManagement(tableId);
+                renderHashdiffManagement(tableId);
+                updateColumnDisplay(tableId);
+            });
+            
+            if (metadata.length > 0) {
+                currentTableId = `${metadata[0].schema}_${metadata[0].table}`;
+            }
+            
             document.getElementById('save-btn').disabled = false;
             document.getElementById('export-btn').disabled = false;
         }
 
         function updateStatus(element) {
-            // Add visual feedback when values change
-            const row = element.closest('tr');
-            const hasValues = Array.from(row.querySelectorAll('select, input[type="number"]'))
-                .some(el => el.value && el.value !== '');
-            
-            // You can add status indicators here if needed
+            // Visual feedback placeholder
         }
 
         function showError(message) {
@@ -429,4 +1294,3 @@
     </script>
 </body>
 </html>
-
