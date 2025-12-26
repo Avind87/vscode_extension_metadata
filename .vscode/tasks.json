@@ -13,7 +13,18 @@
                 "kind": "build",
                 "isDefault": true
             }
+        },
+        {
+            "type": "npm",
+            "script": "compile",
+            "problemMatcher": "$tsc",
+            "presentation": {
+                "reveal": "silent"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         }
     ]
 }
-

@@ -224,12 +224,13 @@ export class MetadataEditorPanel {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview) {
-        // Get the URI for the HTML file
-        const htmlUri = vscode.Uri.joinPath(this._extensionUri, 'media', 'editor.html');
+        // For VS Code webviews, it's simpler to inline the HTML
+        // Read the HTML file from the extension directory
+        const htmlPath = path.join(this._extensionUri.fsPath, 'media', 'editor.html');
         
         try {
             // Read the HTML file
-            const htmlContent = fs.readFileSync(htmlUri.fsPath, 'utf-8');
+            const htmlContent = fs.readFileSync(htmlPath, 'utf-8');
             // Replace placeholders
             const htmlWithPaths = htmlContent
                 .replace(/{{DB_PATH}}/g, this._dbPath)
