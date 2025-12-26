@@ -29,7 +29,7 @@ export class MetadataEditorPanel {
         // Otherwise, create a new panel.
         const panel = vscode.window.createWebviewPanel(
             MetadataEditorPanel.viewType,
-            'TurboVault Metadata Editor',
+            'Data Vault 2.1 Metadata Prep App',
             column || vscode.ViewColumn.One,
             {
                 enableScripts: true,

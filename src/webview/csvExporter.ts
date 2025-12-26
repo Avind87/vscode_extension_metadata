@@ -34,6 +34,7 @@ export interface TableMetadata {
     table: string;
     businessConcept?: string; // Business concept (Customer, Order, etc.)
     businessKeyGroups?: BusinessKeyGroup[]; // Groups of business keys with hashkey names
+    createSatellite?: boolean; // Whether to create a satellite for this table
     columns: ColumnMetadata[];
 }
 
@@ -176,6 +177,11 @@ export class CSVExporter {
         const rows: string[][] = [];
 
         tables.forEach(table => {
+            // Only create satellite if explicitly enabled
+            if (!(table as any).createSatellite) {
+                return; // Skip tables where satellite creation is not enabled
+            }
+
             // Get business key columns to exclude from payload
             const businessKeyColumns = new Set<string>();
             if (table.businessKeyGroups) {

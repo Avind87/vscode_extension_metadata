@@ -1,7 +1,7 @@
 {
   "name": "metadata-frontend",
-  "displayName": "TurboVault Metadata Editor",
-  "description": "Visual editor for TurboVault metadata - categorize columns, set business keys, hashkeys, hashdiffs, and export to CSV",
+  "displayName": "Data Vault 2.1 Metadata Prep App",
+  "description": "Visual editor for Data Vault 2.1 metadata - categorize columns, set business keys, hashkeys, hashdiffs, and export to CSV",
   "version": "0.1.0",
   "engines": {
     "vscode": "^1.80.0"
@@ -17,7 +17,7 @@
     "commands": [
       {
         "command": "metadata-frontend.openEditor",
-        "title": "Open TurboVault Metadata Editor",
+        "title": "Open Data Vault 2.1 Metadata Prep App",
         "icon": "$(database)"
       }
     ],

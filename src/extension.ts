@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { MetadataEditorPanel } from './webview/metadataEditorPanel';
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('TurboVault Metadata Editor extension is now active');
+    console.log('Data Vault 2.1 Metadata Prep App extension is now active');
 
     // Register command to open the metadata editor
     const openEditorCommand = vscode.commands.registerCommand('metadata-frontend.openEditor', async () => {
