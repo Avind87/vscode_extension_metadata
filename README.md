@@ -4,9 +4,6 @@ A VS Code extension for visually preparing Data Vault 2.1 metadata. This tool he
 
 ## Overview
 
-![Main Interface](docs/screenshots/main-interface.png)
-*Main interface showing table metadata, hashkey management, and satellite configuration*
-
 This tool addresses a key challenge in Data Vault 2.1 implementation: creating and maintaining consistent metadata across multiple files while ensuring proper naming conventions and column ordering. It provides a visual interface that enforces Data Vault 2.1 standards and helps prevent common errors.
 
 ## Why This Tool Exists
@@ -66,18 +63,12 @@ While dbt is excellent for data transformation, it has some limitations when wor
 
 ### 1. Business Concept Management
 
-![Business Concepts](docs/screenshots/business-concepts.png)
-*Select business concepts to automatically generate hashkey names*
-
 - **Automatic Hashkey Naming**: Select a business concept (e.g., "Customer") and hashkeys are automatically named `hk_customer_h`
 - **Concept-Based Organization**: Group related tables by business concept
 - **Cross-Table Consistency**: See all hashkeys for a concept across all tables
 - **Add New Concepts**: Easily add new business concepts as needed
 
 ### 2. Hub Hashkey Management
-
-![Hub Hashkeys](docs/screenshots/hub-hashkeys.png)
-*Create and manage hub hashkeys with drag-and-drop column ordering*
 
 - **Multiple Hashkeys per Table**: Support for multiple business key groups
 - **Manual Column Ordering**: Drag-and-drop or use up/down buttons to ensure correct hashing order (critical for Data Vault)
@@ -86,18 +77,12 @@ While dbt is excellent for data transformation, it has some limitations when wor
 
 ### 3. Link Hashkey Management
 
-![Link Hashkeys](docs/screenshots/link-hashkeys.png)
-*Create links between hubs using existing hashkeys*
-
 - **Visual Link Creation**: Create links between hubs using existing hashkeys
 - **Default Naming**: Link hashkeys automatically named as `<Entity>_<Entity>` (e.g., `Customer_Order`)
 - **Reference Management**: Select which hashkeys to link from a dropdown of all available hashkeys
 - **Automatic Column Mapping**: Columns are automatically mapped from referenced hashkeys
 
 ### 4. Satellite Configuration
-
-![Satellites](docs/screenshots/satellites.png)
-*Configure satellites with business concept selection and flexible column selection*
 
 - **Business Concept Selection**: Select a business concept - the hashkey is automatically determined (one hashkey per concept)
 - **Multiple Hashdiffs**: Create multiple hashdiffs per table
@@ -108,9 +93,6 @@ While dbt is excellent for data transformation, it has some limitations when wor
 - **Automatic Naming**: Satellite names follow pattern `hd_{concept}_{table}_sat`
 
 ### 5. Global Hashkey View
-
-![Global Hashkey View](docs/screenshots/global-hashkey-view.png)
-*View and manage all hashkeys across all tables in one place*
 
 - **Cross-Table Visibility**: See all hashkeys across all tables in one view
 - **Consistency Checking**: Compare hashkeys across tables to ensure correct mapping
