@@ -1,6 +1,6 @@
 /**
- * CSV Exporter for TurboVault metadata
- * Converts metadata editor data to TurboVault CSV format
+ * CSV Exporter for Data Vault 2.1 metadata
+ * Converts metadata editor data to Data Vault 2.1 CSV format
  */
 
 export interface BusinessKeyGroup {
@@ -34,12 +34,13 @@ export interface TableMetadata {
     table: string;
     businessConcept?: string; // Business concept (Customer, Order, etc.)
     businessKeyGroups?: BusinessKeyGroup[]; // Groups of business keys with hashkey names
+    createSatellite?: boolean; // Whether to create a satellite for this table
     columns: ColumnMetadata[];
 }
 
 export class CSVExporter {
     /**
-     * Convert table metadata to TurboVault source_data.csv format
+     * Convert table metadata to Data Vault 2.1 source_data.csv format
      */
     static exportSourceData(tables: TableMetadata[]): string {
         const headers = [
@@ -77,7 +78,7 @@ export class CSVExporter {
     }
 
     /**
-     * Convert table metadata to TurboVault standard_hub.csv format
+     * Convert table metadata to Data Vault 2.1 standard_hub.csv format
      */
     static exportStandardHub(tables: TableMetadata[]): string {
         const headers = [
@@ -98,7 +99,8 @@ export class CSVExporter {
         tables.forEach(table => {
             // Use business key groups if available, otherwise fall back to individual business keys
             if (table.businessKeyGroups && table.businessKeyGroups.length > 0) {
-                // Filter out link hashkeys (they go to standard_link.csv)
+                // IMPORTANT: Only regular hashkeys (isLink = false or undefined) go to hubs
+                // Link hashkeys (isLink = true) go to standard_link.csv
                 const nonLinkGroups = table.businessKeyGroups.filter(g => !g.isLink);
                 
                 nonLinkGroups.forEach((group, groupIndex) => {
@@ -158,7 +160,7 @@ export class CSVExporter {
     }
 
     /**
-     * Convert table metadata to TurboVault standard_satellite.csv format
+     * Convert table metadata to Data Vault 2.1 standard_satellite.csv format
      */
     static exportStandardSatellite(tables: TableMetadata[]): string {
         const headers = [
@@ -176,55 +178,76 @@ export class CSVExporter {
         const rows: string[][] = [];
 
         tables.forEach(table => {
+            // Create satellites based on hashdiffs
+            const hashdiffGroups = (table as any).hashdiffGroups || [];
+            if (hashdiffGroups.length === 0) {
+                return; // Skip tables without hashdiffs
+            }
+
             // Get business key columns to exclude from payload
             const businessKeyColumns = new Set<string>();
             if (table.businessKeyGroups) {
                 table.businessKeyGroups.forEach(group => {
                     group.columns.forEach(col => businessKeyColumns.add(col));
                 });
-            } else {
-                table.columns.filter(c => c.isBusinessKey).forEach(c => businessKeyColumns.add(c.column));
             }
 
-            const payloadColumns = table.columns.filter(c => {
-                // Include if explicitly marked as payload
-                if (c.isPayload) return true;
-                // Exclude if it's a business key, hashkey, hashdiff, record source, or load date
-                if (c.isHashkey || c.isHashdiff || c.isRecordSource || c.isLoadDate) return false;
-                if (businessKeyColumns.has(c.column)) return false;
-                // Include everything else as payload
-                return true;
-            });
+            // Get record source and load date columns
+            const recordSourceCol = table.columns.find(c => c.isRecordSource)?.column || '';
+            const loadDateCol = table.columns.find(c => c.isLoadDate)?.column || '';
 
-            if (payloadColumns.length === 0) {
-                return; // Skip tables without payload columns
-            }
+            // Process each hashdiff group
+            hashdiffGroups.forEach((hashdiff: any) => {
+                if (!hashdiff.concept || !hashdiff.hashkey) {
+                    return; // Skip hashdiffs without concept/hashkey
+                }
 
-            const hubName = this.generateHubName(table.table, table.businessConcept);
-            const satelliteName = `${hubName}_sat`;
-            const satelliteIdentifier = `S_${hubName}`;
-            const parentIdentifier = `H_${hubName}`;
-            
-            // Get the hashkey from the first business key group, or default
-            let parentHashkey = `hk_${hubName}`;
-            if (table.businessKeyGroups && table.businessKeyGroups.length > 0) {
-                parentHashkey = table.businessKeyGroups[0].hashkeyName || parentHashkey;
-            }
-            
-            const sourceIdentifier = `${this.extractSourceSystem(table.schema, table.table)}_${this.extractSourceObject(table.schema, table.table)}_${table.table}`;
+                // Get columns for this hashdiff
+                const hashdiffColumns = new Set<string>();
+                if (hashdiff.mode === 'select_all') {
+                    // Include all columns except excluded ones, business keys, record source, load date
+                    table.columns.forEach(col => {
+                        if (!hashdiff.excludedColumns.includes(col.column) &&
+                            !businessKeyColumns.has(col.column) &&
+                            col.column !== recordSourceCol &&
+                            col.column !== loadDateCol) {
+                            hashdiffColumns.add(col.column);
+                        }
+                    });
+                } else {
+                    // Include only explicitly selected columns
+                    hashdiff.includedColumns.forEach((col: string) => hashdiffColumns.add(col));
+                }
 
-            payloadColumns.forEach((col, index) => {
-                rows.push([
-                    satelliteIdentifier,
-                    satelliteName,
-                    sourceIdentifier,
-                    col.column,
-                    parentIdentifier,
-                    parentHashkey,
-                    col.column,
-                    String(col.order || index + 1),
-                    this.extractGroupName(table.schema)
-                ]);
+                if (hashdiffColumns.size === 0) {
+                    return; // Skip empty hashdiffs
+                }
+
+                // Find the hub name from the hashkey
+                const hubName = hashdiff.hashkey.replace(/^hk_/, '').replace(/_h$/, '');
+                const satelliteName = hashdiff.name.replace(/^hd_/, '').replace(/_sat$/, '');
+                const satelliteIdentifier = `S_${satelliteName}`;
+                const parentIdentifier = `H_${hubName}`;
+                const parentHashkey = hashdiff.hashkey;
+                
+                const sourceIdentifier = `${this.extractSourceSystem(table.schema, table.table)}_${this.extractSourceObject(table.schema, table.table)}_${table.table}`;
+
+                Array.from(hashdiffColumns).forEach((colName, index) => {
+                    const col = table.columns.find(c => c.column === colName);
+                    if (col) {
+                        rows.push([
+                            satelliteIdentifier,
+                            satelliteName,
+                            sourceIdentifier,
+                            col.column,
+                            parentIdentifier,
+                            parentHashkey,
+                            col.column,
+                            String(col.order || index + 1),
+                            this.extractGroupName(table.schema)
+                        ]);
+                    }
+                });
             });
         });
 
@@ -232,7 +255,7 @@ export class CSVExporter {
     }
 
     /**
-     * Convert table metadata to TurboVault standard_link.csv format
+     * Convert table metadata to Data Vault 2.1 standard_link.csv format
      */
     static exportStandardLink(tables: TableMetadata[]): string {
         const headers = [
@@ -250,9 +273,10 @@ export class CSVExporter {
         const rows: string[][] = [];
 
         tables.forEach(table => {
-            // Find link hashkey groups
+            // IMPORTANT: Only link hashkeys (isLink = true) go to links
+            // Regular hashkeys (isLink = false or undefined) go to standard_hub.csv
             if (table.businessKeyGroups) {
-                const linkGroups = table.businessKeyGroups.filter(g => g.isLink);
+                const linkGroups = table.businessKeyGroups.filter(g => g.isLink === true);
                 
                 linkGroups.forEach((linkGroup, linkIndex) => {
                     const linkName = linkGroup.hashkeyName || `lk_${table.table}_${linkIndex + 1}`;
@@ -339,6 +363,108 @@ export class CSVExporter {
     private static extractGroupName(schema: string): string {
         // Default logic - can be enhanced
         return schema.toUpperCase() || 'DEFAULT';
+    }
+
+    /**
+     * Export metadata in information_schema format with metadata columns as additional fields
+     * This format follows information_schema.columns structure with metadata as JSON arrays
+     */
+    static exportInformationSchemaFormat(tables: TableMetadata[]): string {
+        const headers = [
+            'table_catalog',
+            'table_schema',
+            'table_name',
+            'column_name',
+            'ordinal_position',
+            'data_type',
+            'is_nullable',
+            'business_concept',
+            'hub_hashkey',
+            'link_hashkey',
+            'hashdiff_names',
+            'is_record_source',
+            'is_load_date',
+            'create_satellite'
+        ];
+
+        const rows: string[][] = [];
+
+        tables.forEach(table => {
+            // Get all hashkeys for this table
+            const hubHashkeys: string[] = [];
+            const linkHashkeys: string[] = [];
+            const hashdiffNames = new Set<string>();
+            
+            if (table.businessKeyGroups) {
+                table.businessKeyGroups.forEach(group => {
+                    if (group.isLink) {
+                        if (group.hashkeyName) linkHashkeys.push(group.hashkeyName);
+                    } else {
+                        if (group.hashkeyName) hubHashkeys.push(group.hashkeyName);
+                    }
+                });
+            }
+
+            // Get hashdiff names
+            if ((table as any).hashdiffGroups) {
+                (table as any).hashdiffGroups.forEach((diff: any) => {
+                    hashdiffNames.add(diff.name);
+                });
+            }
+
+            table.columns.forEach(col => {
+                // Find which hashkey this column belongs to
+                let hubHashkey = '';
+                let linkHashkey = '';
+                
+                if (table.businessKeyGroups) {
+                    table.businessKeyGroups.forEach(group => {
+                        if (group.columns.includes(col.column)) {
+                            if (group.isLink) {
+                                linkHashkey = group.hashkeyName || '';
+                            } else {
+                                hubHashkey = group.hashkeyName || '';
+                            }
+                        }
+                    });
+                }
+
+                // Get hashdiff names for this column
+                const columnHashdiffs: string[] = [];
+                if ((table as any).hashdiffGroups) {
+                    (table as any).hashdiffGroups.forEach((diff: any) => {
+                        if (diff.mode === 'select_all') {
+                            if (!diff.excludedColumns.includes(col.column)) {
+                                columnHashdiffs.push(diff.name);
+                            }
+                        } else {
+                            if (diff.includedColumns.includes(col.column)) {
+                                columnHashdiffs.push(diff.name);
+                            }
+                        }
+                    });
+                }
+
+                rows.push([
+                    'default', // table_catalog
+                    table.schema,
+                    table.table,
+                    col.column,
+                    String(col.order),
+                    (col as any).data_type || '',
+                    (col as any).is_nullable || 'YES',
+                    table.businessConcept || '',
+                    hubHashkey || '',
+                    linkHashkey || '',
+                    columnHashdiffs.length > 0 ? JSON.stringify(columnHashdiffs) : '',
+                    col.isRecordSource ? 'true' : 'false',
+                    col.isLoadDate ? 'true' : 'false',
+                    (table as any).createSatellite ? 'true' : 'false'
+                ]);
+            });
+        });
+
+        return this.arrayToCSV([headers, ...rows]);
     }
 
     /**

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TurboVault Metadata Editor</title>
+    <title>Data Vault 2.1 Metadata Prep App</title>
     <style>
         * {
             box-sizing: border-box;
@@ -360,14 +360,16 @@
 </head>
 <body>
     <div class="header">
-        <h1>TurboVault Metadata Editor</h1>
+        <h1>Data Vault 2.1 Metadata Prep App</h1>
         <p id="db-path">Database: Loading...</p>
     </div>
     
     <div class="controls">
         <button id="load-btn" onclick="loadMetadata()">Load Metadata</button>
         <button id="save-btn" onclick="saveMetadata()" disabled>Save Metadata</button>
-        <button id="export-btn" onclick="exportCSV()" disabled class="secondary">Export to CSV</button>
+        <button id="export-btn" onclick="exportCSV()" disabled class="secondary">Export to CSV (Legacy)</button>
+        <button id="export-new-btn" onclick="exportNewFormatCSV()" disabled class="secondary">Export to CSV (New Format)</button>
+        <button id="browse-db-btn" onclick="browseMetadataInDuckDB()" disabled class="secondary">Browse in DuckDB</button>
     </div>
 
     <div id="error-container"></div>
@@ -425,6 +427,15 @@
         function exportCSV() {
             const metadata = collectMetadata();
             vscode.postMessage({ command: 'exportCSV', data: metadata });
+        }
+
+        function exportNewFormatCSV() {
+            const metadata = collectMetadata();
+            vscode.postMessage({ command: 'exportNewFormatCSV', data: metadata });
+        }
+
+        function browseMetadataInDuckDB() {
+            vscode.postMessage({ command: 'browseMetadataInDuckDB' });
         }
 
         function navigateToTable(tableId) {
@@ -496,32 +507,144 @@
             alert(message);
         }
 
-        function addBusinessConcept(tableId, inputElement) {
-            const concept = inputElement ? inputElement.value.trim() : '';
+        function handleBusinessConceptChange(selectElement, tableId) {
+            const value = selectElement.value;
+            if (value === '__ADD_NEW__') {
+                // Show input field
+                const container = selectElement.closest('.business-concept-selector');
+                let inputContainer = container.querySelector('.new-concept-input-container');
+                if (!inputContainer) {
+                    inputContainer = document.createElement('div');
+                    inputContainer.className = 'new-concept-input-container';
+                    inputContainer.style.display = 'flex';
+                    inputContainer.style.gap = '5px';
+                    inputContainer.style.marginLeft = '10px';
+                    inputContainer.innerHTML = `
+                        <input type="text" placeholder="Enter new concept name..." id="new-concept-input-${tableId}" style="width: 200px;">
+                        <button onclick="addNewBusinessConcept('${tableId}')" style="padding: 4px 8px; font-size: 11px;">Add</button>
+                        <button onclick="cancelAddConcept('${tableId}')" style="padding: 4px 8px; font-size: 11px;">Cancel</button>
+                    `;
+                    container.appendChild(inputContainer);
+                }
+                inputContainer.style.display = 'flex';
+                document.getElementById(`new-concept-input-${tableId}`).focus();
+            } else {
+                // Hide input field if visible
+                const container = selectElement.closest('.business-concept-selector');
+                const inputContainer = container.querySelector('.new-concept-input-container');
+                if (inputContainer) {
+                    inputContainer.style.display = 'none';
+                }
+            }
+        }
+
+        function addNewBusinessConcept(tableId) {
+            const input = document.getElementById(`new-concept-input-${tableId}`);
+            const concept = input ? input.value.trim() : '';
             if (concept && !businessConcepts.includes(concept)) {
                 businessConcepts.push(concept);
                 businessConcepts.sort();
                 refreshAllConceptSelectors();
-                if (inputElement) {
-                    inputElement.value = '';
+                
+                // Set the newly added concept as selected
+                const select = document.querySelector(`[data-table-id="${tableId}"] .business-concept-select`);
+                if (select) {
+                    select.value = concept;
                 }
-                // If called from hashkey creation, update the hashkey concept selector
-                if (tableId) {
-                    const hashkeySelect = document.querySelector(`[data-table-id="${tableId}"] .hashkey-concept-select`);
-                    if (hashkeySelect) {
-                        hashkeySelect.innerHTML = '<option value="">-- Select Concept --</option>' +
-                            businessConcepts.map(c => `<option value="${c}">${c}</option>`).join('');
-                    }
+                
+                // Hide input field
+                cancelAddConcept(tableId);
+            }
+        }
+
+        function cancelAddConcept(tableId) {
+            const container = document.querySelector(`[data-table-id="${tableId}"] .business-concept-selector`);
+            const inputContainer = container ? container.querySelector('.new-concept-input-container') : null;
+            if (inputContainer) {
+                inputContainer.style.display = 'none';
+                const input = inputContainer.querySelector('input');
+                if (input) input.value = '';
+            }
+            // Reset dropdown
+            const select = document.querySelector(`[data-table-id="${tableId}"] .business-concept-select`);
+            if (select) {
+                select.value = '';
+            }
+        }
+
+        function handleHashkeyConceptChange(selectElement, tableId, hashkeyIndex) {
+            const value = selectElement.value;
+            if (value === '__ADD_NEW__') {
+                // Show input field
+                const inputContainer = document.getElementById(`hashkey-new-concept-${tableId}-${hashkeyIndex}`);
+                if (inputContainer) {
+                    inputContainer.style.display = 'flex';
+                    document.getElementById(`hashkey-new-concept-input-${tableId}-${hashkeyIndex}`).focus();
                 }
+            } else if (value) {
+                // Update hashkey business concept
+                updateHashkeyBusinessConcept(tableId, hashkeyIndex, value);
+                // Hide input field if visible
+                const inputContainer = document.getElementById(`hashkey-new-concept-${tableId}-${hashkeyIndex}`);
+                if (inputContainer) {
+                    inputContainer.style.display = 'none';
+                }
+            }
+        }
+
+        function addNewHashkeyConcept(tableId, hashkeyIndex) {
+            const input = document.getElementById(`hashkey-new-concept-input-${tableId}-${hashkeyIndex}`);
+            const concept = input ? input.value.trim() : '';
+            if (concept && !businessConcepts.includes(concept)) {
+                businessConcepts.push(concept);
+                businessConcepts.sort();
+                refreshAllConceptSelectors();
+                
+                // Set the newly added concept and update hashkey
+                updateHashkeyBusinessConcept(tableId, hashkeyIndex, concept);
+                
+                // Hide input field
+                const inputContainer = document.getElementById(`hashkey-new-concept-${tableId}-${hashkeyIndex}`);
+                if (inputContainer) {
+                    inputContainer.style.display = 'none';
+                    if (input) input.value = '';
+                }
+                
+                // Update the select to show the new concept
+                const select = document.querySelector(`#hashkey-new-concept-${tableId}-${hashkeyIndex}`)?.previousElementSibling;
+                if (select && select.tagName === 'SELECT') {
+                    select.value = concept;
+                }
+            }
+        }
+
+        function cancelAddHashkeyConcept(tableId, hashkeyIndex) {
+            const inputContainer = document.getElementById(`hashkey-new-concept-${tableId}-${hashkeyIndex}`);
+            if (inputContainer) {
+                inputContainer.style.display = 'none';
+                const input = inputContainer.querySelector('input');
+                if (input) input.value = '';
+            }
+            // Reset dropdown
+            const select = document.querySelector(`#hashkey-new-concept-${tableId}-${hashkeyIndex}`)?.previousElementSibling;
+            if (select && select.tagName === 'SELECT') {
+                select.value = '';
             }
         }
 
         function refreshAllConceptSelectors() {
             document.querySelectorAll('.business-concept-select, .hashkey-concept-select').forEach(select => {
                 const currentValue = select.value;
-                select.innerHTML = '<option value="">-- Select Concept --</option>' +
-                    businessConcepts.map(c => `<option value="${c}">${c}</option>`).join('');
-                if (currentValue) select.value = currentValue;
+                const isBusinessConcept = select.classList.contains('business-concept-select');
+                let options = '<option value="">-- Select Concept --</option>';
+                if (isBusinessConcept) {
+                    options += '<option value="__ADD_NEW__">-- Add New Concept --</option>';
+                }
+                options += businessConcepts.map(c => `<option value="${c}">${c}</option>`).join('');
+                select.innerHTML = options;
+                if (currentValue && currentValue !== '__ADD_NEW__') {
+                    select.value = currentValue;
+                }
             });
         }
 
@@ -709,16 +832,18 @@
                 } else {
                     // Regular hashkey: use business concept dropdown
                     html += '<div style="display: flex; align-items: center; gap: 10px; flex: 1;">';
-                    html += `<select class="hashkey-concept-select" onchange="updateHashkeyBusinessConcept('${tableId}', ${index}, this.value)" style="min-width: 200px;">
-                             <option value="">-- Select Business Concept --</option>`;
+                    html += `<select class="hashkey-concept-select" onchange="handleHashkeyConceptChange(this, '${tableId}', ${index})" style="min-width: 200px;">
+                             <option value="">-- Select Business Concept --</option>
+                             <option value="__ADD_NEW__">-- Add New Concept --</option>`;
                     businessConcepts.forEach(c => {
                         html += `<option value="${c}" ${group.businessConcept === c ? 'selected' : ''}>${c}</option>`;
                     });
                     html += '</select>';
-                    html += '<div class="add-concept-input">';
-                    html += `<input type="text" placeholder="New concept..." id="new-concept-${tableId}-${index}" style="width: 150px;">`;
-                    html += `<button onclick="addBusinessConcept('${tableId}', document.getElementById('new-concept-${tableId}-${index}'))" style="padding: 4px 8px; font-size: 11px;">+ Add</button>`;
-                    html += '</div>';
+                    html += `<div class="new-concept-input-container" id="hashkey-new-concept-${tableId}-${index}" style="display: none; gap: 5px;">
+                             <input type="text" placeholder="Enter new concept name..." id="hashkey-new-concept-input-${tableId}-${index}" style="width: 150px;">
+                             <button onclick="addNewHashkeyConcept('${tableId}', ${index})" style="padding: 4px 8px; font-size: 11px;">Add</button>
+                             <button onclick="cancelAddHashkeyConcept('${tableId}', ${index})" style="padding: 4px 8px; font-size: 11px;">Cancel</button>
+                             </div>`;
                     html += '</div>';
                     html += `<div style="color: var(--vscode-descriptionForeground); font-size: 11px; margin-left: 10px;">${group.hashkeyName || '(name will be auto-generated)'}</div>`;
                     html += '<span>→</span>';
@@ -840,6 +965,20 @@
             updateColumnDisplay(tableId);
         }
 
+        function setHashdiffConcept(tableId, index, concept) {
+            if (hashdiffGroups[tableId] && hashdiffGroups[tableId][index]) {
+                hashdiffGroups[tableId][index].concept = concept;
+                hashdiffGroups[tableId][index].hashkey = ''; // Reset hashkey when concept changes
+                renderHashdiffManagement(tableId);
+            }
+        }
+
+        function setHashdiffHashkey(tableId, index, hashkey) {
+            if (hashdiffGroups[tableId] && hashdiffGroups[tableId][index]) {
+                hashdiffGroups[tableId][index].hashkey = hashkey;
+            }
+        }
+
         function getColumnContainedIn(tableId, columnName) {
             // Check if in hashkey group
             const groups = allBusinessKeyGroups[tableId] || [];
@@ -895,6 +1034,8 @@
                 mode: 'select_all', // 'select_all' or 'select_explicit'
                 excludedColumns: [],
                 includedColumns: [],
+                concept: '', // Business concept this hashdiff belongs to
+                hashkey: '', // Hashkey this hashdiff belongs to
                 order: hashdiffGroups[tableId].length + 1
             };
             hashdiffGroups[tableId].push(newGroup);
@@ -961,10 +1102,51 @@
 
             diffs.forEach((diff, index) => {
                 html += '<div class="hashdiff-item">';
-                html += `<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">`;
+                html += `<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">`;
                 html += `<input type="text" value="${diff.name}" placeholder="${defaultName}" 
                          onchange="updateHashdiffName('${tableId}', ${index}, this.value)" 
                          style="min-width: 250px;">`;
+                
+                // Concept selector - get all concepts from all hashkeys
+                const allConcepts = new Set();
+                Object.values(allBusinessKeyGroups).forEach((groups) => {
+                    groups.forEach((group) => {
+                        if (group.businessConcept && !group.isLink) {
+                            allConcepts.add(group.businessConcept);
+                        }
+                    });
+                });
+                const sortedConcepts = Array.from(allConcepts).sort();
+                
+                html += `<select onchange="setHashdiffConcept('${tableId}', ${index}, this.value)" style="min-width: 150px;">
+                         <option value="">-- Select Concept --</option>`;
+                sortedConcepts.forEach(concept => {
+                    html += `<option value="${concept}" ${diff.concept === concept ? 'selected' : ''}>${concept}</option>`;
+                });
+                html += '</select>';
+                
+                // Hashkey selector (populated based on concept - from ALL tables)
+                const hashkeysForConcept = [];
+                if (diff.concept) {
+                    Object.values(allBusinessKeyGroups).forEach((groups) => {
+                        groups.forEach((group) => {
+                            if (!group.isLink && group.businessConcept === diff.concept && group.hashkeyName) {
+                                if (!hashkeysForConcept.includes(group.hashkeyName)) {
+                                    hashkeysForConcept.push(group.hashkeyName);
+                                }
+                            }
+                        });
+                    });
+                }
+                hashkeysForConcept.sort();
+                
+                html += `<select onchange="setHashdiffHashkey('${tableId}', ${index}, this.value)" style="min-width: 150px;">
+                         <option value="">-- Select Hashkey --</option>`;
+                hashkeysForConcept.forEach(hk => {
+                    html += `<option value="${hk}" ${diff.hashkey === hk ? 'selected' : ''}>${hk}</option>`;
+                });
+                html += '</select>';
+                
                 html += `<button onclick="removeHashdiffGroup('${tableId}', ${index})" style="padding: 4px 8px; font-size: 11px;">Remove</button>`;
                 html += '</div>';
                 
@@ -1060,7 +1242,7 @@
                 const tableId = `${schemaName}_${tableName}`;
                 const rows = section.querySelectorAll('tbody tr');
                 
-                const businessConcept = section.querySelector('.business-concept-select')?.value || '';
+                const businessConcept = ''; // Business concept is now only at hashdiff level
                 const businessKeyGroups = (allBusinessKeyGroups[tableId] || []).sort((a, b) => a.order - b.order);
                 const hashdiffGroupsData = hashdiffGroups[tableId] || [];
                 
@@ -1151,19 +1333,6 @@
                         <div class="table-header">
                             <h2>${tableMeta.schema}.${tableMeta.table}</h2>
                             <span>${tableMeta.columns.length} columns</span>
-                        </div>
-                        <div class="business-concept-selector">
-                            <label>Business Concept:</label>
-                            <select class="business-concept-select" onchange="updateStatus(this)">
-                                <option value="">-- Select Concept --</option>
-                                ${businessConcepts.map(c => 
-                                    `<option value="${c}">${c}</option>`
-                                ).join('')}
-                            </select>
-                            <div class="add-concept-input">
-                                <input type="text" placeholder="New concept..." id="new-table-concept-${tableId}" style="width: 150px;">
-                                <button onclick="addBusinessConcept('${tableId}', document.getElementById('new-table-concept-${tableId}'))" style="padding: 4px 8px; font-size: 11px;">+ Add</button>
-                            </div>
                         </div>
                         <div class="hashkey-management"></div>
                         <div class="hashdiff-management"></div>
@@ -1257,10 +1426,22 @@
             const message = event.data;
             
             switch (message.command) {
+                case 'dbPath':
+                    updateDbPath(message.path);
+                    break;
+                case 'requestMetadata':
+                    const metadata = collectMetadata();
+                    vscode.postMessage({
+                        command: 'metadataResponse',
+                        data: metadata
+                    });
+                    break;
                 case 'metadataLoaded':
                     clearError();
                     displayMetadata(message.data);
                     document.getElementById('load-btn').disabled = false;
+                    document.getElementById('export-new-btn').disabled = false;
+                    document.getElementById('browse-db-btn').disabled = false;
                     break;
                 case 'saveSuccess':
                     vscode.postMessage({
@@ -1281,13 +1462,6 @@
             }
         });
 
-        // Handle DB path update
-        window.addEventListener('message', event => {
-            const message = event.data;
-            if (message.command === 'dbPath') {
-                updateDbPath(message.path);
-            }
-        });
 
         // Initialize
         vscode.postMessage({ command: 'ready' });
