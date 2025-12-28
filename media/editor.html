@@ -125,7 +125,8 @@
             margin-right: 5px;
         }
 
-        .hashkey-management {
+        .hashkey-management,
+        .link-management {
             margin-bottom: 15px;
             padding: 10px;
             background-color: var(--vscode-editorWidget-background);
@@ -367,9 +368,7 @@
     <div class="controls">
         <button id="load-btn" onclick="loadMetadata()">Load Metadata</button>
         <button id="save-btn" onclick="saveMetadata()" disabled>Save Metadata</button>
-        <button id="export-btn" onclick="exportCSV()" disabled class="secondary">Export to CSV (Legacy)</button>
-        <button id="export-new-btn" onclick="exportNewFormatCSV()" disabled class="secondary">Export to CSV (New Format)</button>
-        <button id="browse-db-btn" onclick="browseMetadataInDuckDB()" disabled class="secondary">Browse in DuckDB</button>
+        <button id="export-btn" onclick="exportCSV()" disabled class="secondary">Export to CSV</button>
     </div>
 
     <div id="error-container"></div>
@@ -413,6 +412,52 @@
             document.getElementById('db-path').textContent = `Database: ${path}`;
         }
 
+        function exportNewFormatCSV() {
+            console.log('exportNewFormatCSV function called');
+            if (!currentMetadata || !currentMetadata.length) {
+                alert('No metadata available. Please load metadata first.');
+                return;
+            }
+            try {
+                const metadata = collectMetadata();
+                console.log('Metadata collected, sending message');
+                vscode.postMessage({ command: 'exportNewFormatCSV', data: metadata });
+            } catch (error) {
+                console.error('Error in exportNewFormatCSV:', error);
+                alert('Error exporting CSV: ' + (error.message || error));
+            }
+        }
+
+        function browseMetadataInDuckDB() {
+            console.log('browseMetadataInDuckDB function called');
+            if (!currentMetadata || !currentMetadata.length) {
+                alert('No metadata available. Please load metadata first.');
+                return;
+            }
+            try {
+                const metadata = collectMetadata();
+                console.log('Metadata collected, sending message');
+                vscode.postMessage({ command: 'browseMetadataInDuckDB' });
+            } catch (error) {
+                console.error('Error in browseMetadataInDuckDB:', error);
+                alert('Error browsing in DuckDB: ' + (error.message || error));
+            }
+        }
+
+        function handleExportNewClick(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Export new button clicked via event listener');
+            exportNewFormatCSV();
+        }
+
+        function handleBrowseDBClick(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Browse DB button clicked via event listener');
+            browseMetadataInDuckDB();
+        }
+
         function loadMetadata() {
             document.getElementById('load-btn').disabled = true;
             document.getElementById('content').innerHTML = '<div class="loading">Loading metadata...</div>';
@@ -420,8 +465,14 @@
         }
 
         function saveMetadata() {
-            const metadata = collectMetadata();
-            vscode.postMessage({ command: 'saveMetadata', data: metadata });
+            try {
+                const metadata = collectMetadata();
+                console.log('Saving metadata:', JSON.stringify(metadata, null, 2));
+                vscode.postMessage({ command: 'saveMetadata', data: metadata });
+            } catch (error) {
+                console.error('Error in saveMetadata:', error);
+                alert('Error collecting metadata: ' + error.message);
+            }
         }
 
         function exportCSV() {
@@ -429,14 +480,6 @@
             vscode.postMessage({ command: 'exportCSV', data: metadata });
         }
 
-        function exportNewFormatCSV() {
-            const metadata = collectMetadata();
-            vscode.postMessage({ command: 'exportNewFormatCSV', data: metadata });
-        }
-
-        function browseMetadataInDuckDB() {
-            vscode.postMessage({ command: 'browseMetadataInDuckDB' });
-        }
 
         function navigateToTable(tableId) {
             if (!tableId) return;
@@ -662,7 +705,12 @@
                 referencedHashkeys: isLink ? [] : undefined
             };
             groups.push(newGroup);
-            renderHashkeyManagement(tableId);
+            if (isLink) {
+                renderLinkManagement(tableId);
+            } else {
+                renderHashkeyManagement(tableId);
+            }
+            updateColumnDisplay(tableId);
         }
 
         function updateHashkeyBusinessConcept(tableId, index, concept) {
@@ -760,7 +808,13 @@
                 }
                 if (!group.referencedHashkeys.includes(hashkeyName)) {
                     group.referencedHashkeys.push(hashkeyName);
-                    renderHashkeyManagement(tableId);
+                    // Auto-suggest link name if we have 2+ hashkeys
+                    if (group.referencedHashkeys.length >= 2 && !group.hashkeyName) {
+                        group.hashkeyName = group.referencedHashkeys
+                            .map(hk => hk.replace(/^hk_/, '').replace(/_h$/, ''))
+                            .join('_');
+                    }
+                    renderLinkManagement(tableId);
                 }
             }
         }
@@ -772,7 +826,13 @@
                     const index = group.referencedHashkeys.indexOf(hashkeyName);
                     if (index > -1) {
                         group.referencedHashkeys.splice(index, 1);
-                        renderHashkeyManagement(tableId);
+                        // Update suggested name
+                        if (group.referencedHashkeys.length >= 2 && !group.hashkeyName) {
+                            group.hashkeyName = group.referencedHashkeys
+                                .map(hk => hk.replace(/^hk_/, '').replace(/_h$/, ''))
+                                .join('_');
+                        }
+                        renderLinkManagement(tableId);
                     }
                 }
             }
@@ -788,40 +848,42 @@
             const allHashkeysList = getAllHashkeys();
 
             let html = '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">';
-            html += '<strong>Hashkeys</strong>';
+            html += '<strong>Hubs / Business Concepts</strong>';
             html += '<div style="display: flex; gap: 5px;">';
-            html += `<button onclick="addHashkeyGroup('${tableId}', false)" style="padding: 4px 8px; font-size: 11px;">+ Add Hashkey</button>`;
-            html += `<button onclick="addHashkeyGroup('${tableId}', true)" style="padding: 4px 8px; font-size: 11px;">+ Add Link Hashkey</button>`;
+            html += `<button onclick="addHashkeyGroup('${tableId}', false)" style="padding: 4px 8px; font-size: 11px;">+ Add Hub</button>`;
             html += '</div>';
             html += '</div>';
 
             html += '<div class="hashkey-list">';
-            groups.forEach((group, index) => {
-                const isLink = group.isLink || false;
-                html += `<div class="hashkey-item ${isLink ? 'link-hashkey' : ''}" draggable="true" 
-                         ondragstart="handleHashkeyDragStart(event, ${index})" 
+            const hubGroups = groups.filter(g => !g.isLink);
+            hubGroups.forEach((group, hubIndex) => {
+                const isLink = false;
+                // Find the actual index in the full groups array
+                const actualIndex = groups.findIndex(g => g === group);
+                html += `<div class="hashkey-item" draggable="true" 
+                         ondragstart="handleHashkeyDragStart(event, ${actualIndex})" 
                          ondragover="handleHashkeyDragOver(event)" 
                          ondragleave="handleHashkeyDragLeave(event)"
-                         ondrop="handleHashkeyDrop(event, '${tableId}', ${index})"
+                         ondrop="handleHashkeyDrop(event, '${tableId}', ${actualIndex})"
                          ondragend="handleHashkeyDragEnd(event)">`;
                 
                 html += '<div class="move-buttons">';
-                html += `<button onclick="moveHashkeyUp('${tableId}', ${index})" ${index === 0 ? 'disabled' : ''}>↑</button>`;
-                html += `<button onclick="moveHashkeyDown('${tableId}', ${index})" ${index === groups.length - 1 ? 'disabled' : ''}>↓</button>`;
+                html += `<button onclick="moveHashkeyUp('${tableId}', ${actualIndex})" ${hubIndex === 0 ? 'disabled' : ''}>↑</button>`;
+                html += `<button onclick="moveHashkeyDown('${tableId}', ${actualIndex})" ${hubIndex === hubGroups.length - 1 ? 'disabled' : ''}>↓</button>`;
                 html += '</div>';
 
                 html += '<span class="drag-handle">☰</span>';
 
                 if (isLink) {
                     html += `<input type="text" value="${group.hashkeyName}" placeholder="Link hashkey name" 
-                             onchange="updateHashkeyName('${tableId}', ${index}, this.value)" 
+                             onchange="updateHashkeyName('${tableId}', ${actualIndex}, this.value)" 
                              style="min-width: 200px;">`;
                     html += '<span>→</span>';
                     html += '<div class="column-list">';
                     (group.referencedHashkeys || []).forEach(hk => {
-                        html += `<span class="column-tag">${hk} <button class="remove-btn" onclick="removeReferencedHashkey('${tableId}', ${index}, '${hk}')">×</button></span>`;
+                        html += `<span class="column-tag">${hk} <button class="remove-btn" onclick="removeReferencedHashkey('${tableId}', ${actualIndex}, '${hk}')">×</button></span>`;
                     });
-                    html += `<select onchange="if(this.value) { addReferencedHashkey('${tableId}', ${index}, this.value); this.value=''; }" style="min-width: 150px;">
+                    html += `<select onchange="if(this.value) { addReferencedHashkey('${tableId}', ${actualIndex}, this.value); this.value=''; }" style="min-width: 150px;">
                              <option value="">Add hashkey...</option>`;
                     allHashkeysList.forEach(hk => {
                         if (!group.referencedHashkeys || !group.referencedHashkeys.includes(hk)) {
@@ -832,26 +894,26 @@
                 } else {
                     // Regular hashkey: use business concept dropdown
                     html += '<div style="display: flex; align-items: center; gap: 10px; flex: 1;">';
-                    html += `<select class="hashkey-concept-select" onchange="handleHashkeyConceptChange(this, '${tableId}', ${index})" style="min-width: 200px;">
+                    html += `<select class="hashkey-concept-select" onchange="handleHashkeyConceptChange(this, '${tableId}', ${actualIndex})" style="min-width: 200px;">
                              <option value="">-- Select Business Concept --</option>
                              <option value="__ADD_NEW__">-- Add New Concept --</option>`;
                     businessConcepts.forEach(c => {
                         html += `<option value="${c}" ${group.businessConcept === c ? 'selected' : ''}>${c}</option>`;
                     });
                     html += '</select>';
-                    html += `<div class="new-concept-input-container" id="hashkey-new-concept-${tableId}-${index}" style="display: none; gap: 5px;">
-                             <input type="text" placeholder="Enter new concept name..." id="hashkey-new-concept-input-${tableId}-${index}" style="width: 150px;">
-                             <button onclick="addNewHashkeyConcept('${tableId}', ${index})" style="padding: 4px 8px; font-size: 11px;">Add</button>
-                             <button onclick="cancelAddHashkeyConcept('${tableId}', ${index})" style="padding: 4px 8px; font-size: 11px;">Cancel</button>
+                    html += `<div class="new-concept-input-container" id="hashkey-new-concept-${tableId}-${actualIndex}" style="display: none; gap: 5px;">
+                             <input type="text" placeholder="Enter new concept name..." id="hashkey-new-concept-input-${tableId}-${actualIndex}" style="width: 150px;">
+                             <button onclick="addNewHashkeyConcept('${tableId}', ${actualIndex})" style="padding: 4px 8px; font-size: 11px;">Add</button>
+                             <button onclick="cancelAddHashkeyConcept('${tableId}', ${actualIndex})" style="padding: 4px 8px; font-size: 11px;">Cancel</button>
                              </div>`;
                     html += '</div>';
                     html += `<div style="color: var(--vscode-descriptionForeground); font-size: 11px; margin-left: 10px;">${group.hashkeyName || '(name will be auto-generated)'}</div>`;
                     html += '<span>→</span>';
                     html += '<div class="column-list">';
                     group.columns.forEach(col => {
-                        html += `<span class="column-tag">${col} <button class="remove-btn" onclick="removeColumnFromHashkeyGroup('${tableId}', ${index}, '${col}')">×</button></span>`;
+                        html += `<span class="column-tag">${col} <button class="remove-btn" onclick="removeColumnFromHashkeyGroup('${tableId}', ${actualIndex}, '${col}')">×</button></span>`;
                     });
-                    html += `<select onchange="if(this.value) { addColumnToHashkeyGroup('${tableId}', ${index}, this.value); this.value=''; }" style="min-width: 150px;">
+                    html += `<select onchange="if(this.value) { addColumnToHashkeyGroup('${tableId}', ${actualIndex}, this.value); this.value=''; }" style="min-width: 150px;">
                              <option value="">Add column...</option>`;
                     availableColumns.forEach(col => {
                         if (!group.columns.includes(col)) {
@@ -861,8 +923,74 @@
                     html += '</select>';
                     html += '</div>';
                 }
-                html += `<button onclick="removeHashkeyGroup('${tableId}', ${index})" style="padding: 4px 8px; font-size: 11px; margin-left: auto;">Remove</button>`;
+                html += `<button onclick="removeHashkeyGroup('${tableId}', ${actualIndex})" style="padding: 4px 8px; font-size: 11px; margin-left: auto;">Remove</button>`;
                 html += '</div></div>';
+            });
+            html += '</div>';
+
+            container.innerHTML = html;
+            renderLinkManagement(tableId);
+        }
+
+        function renderLinkManagement(tableId) {
+            const container = document.querySelector(`[data-table-id="${tableId}"] .link-management`);
+            if (!container) return;
+
+            const groups = (allBusinessKeyGroups[tableId] || []).sort((a, b) => a.order - b.order);
+            const linkGroups = groups.filter(g => g.isLink);
+            const allHashkeysList = getAllHashkeys();
+
+            let html = '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">';
+            html += '<strong>Links / Relationships</strong>';
+            html += '<div style="display: flex; gap: 5px;">';
+            html += `<button onclick="addHashkeyGroup('${tableId}', true)" style="padding: 4px 8px; font-size: 11px;">+ Add Link</button>`;
+            html += '</div>';
+            html += '</div>';
+
+            html += '<div class="hashkey-list">';
+            linkGroups.forEach((group, linkIndex) => {
+                const actualIndex = groups.findIndex(g => g === group);
+                html += `<div class="hashkey-item link-hashkey" draggable="true" 
+                         ondragstart="handleHashkeyDragStart(event, ${actualIndex})" 
+                         ondragover="handleHashkeyDragOver(event)" 
+                         ondragleave="handleHashkeyDragLeave(event)"
+                         ondrop="handleHashkeyDrop(event, '${tableId}', ${actualIndex})"
+                         ondragend="handleHashkeyDragEnd(event)">`;
+                
+                html += '<div class="move-buttons">';
+                html += `<button onclick="moveHashkeyUp('${tableId}', ${actualIndex})" ${linkIndex === 0 ? 'disabled' : ''}>↑</button>`;
+                html += `<button onclick="moveHashkeyDown('${tableId}', ${actualIndex})" ${linkIndex === linkGroups.length - 1 ? 'disabled' : ''}>↓</button>`;
+                html += '</div>';
+
+                html += '<span class="drag-handle">☰</span>';
+
+                // First, select hub hashkeys
+                html += '<div style="display: flex; align-items: center; gap: 10px; flex: 1; flex-wrap: wrap;">';
+                html += '<div class="column-list">';
+                (group.referencedHashkeys || []).forEach(hk => {
+                    html += `<span class="column-tag">${hk} <button class="remove-btn" onclick="removeReferencedHashkey('${tableId}', ${actualIndex}, '${hk}')">×</button></span>`;
+                });
+                html += `<select onchange="if(this.value) { addReferencedHashkey('${tableId}', ${actualIndex}, this.value); this.value=''; }" style="min-width: 150px;">
+                         <option value="">Select Hub Hashkeys...</option>`;
+                allHashkeysList.forEach(hk => {
+                    if (!group.referencedHashkeys || !group.referencedHashkeys.includes(hk)) {
+                        html += `<option value="${hk}">${hk}</option>`;
+                    }
+                });
+                html += '</select>';
+                html += '</div>';
+
+                // Then show suggested name (editable)
+                const suggestedName = group.referencedHashkeys && group.referencedHashkeys.length >= 2 
+                    ? group.referencedHashkeys.map(hk => hk.replace(/^hk_/, '').replace(/_h$/, '')).join('_')
+                    : '';
+                html += `<input type="text" value="${group.hashkeyName || suggestedName}" placeholder="Link name (auto-suggested)" 
+                         onchange="updateHashkeyName('${tableId}', ${actualIndex}, this.value)" 
+                         style="min-width: 200px;">`;
+                html += '</div>';
+
+                html += `<button onclick="removeHashkeyGroup('${tableId}', ${actualIndex})" style="padding: 4px 8px; font-size: 11px; margin-left: auto;">Remove</button>`;
+                html += '</div>';
             });
             html += '</div>';
 
@@ -967,8 +1095,30 @@
 
         function setHashdiffConcept(tableId, index, concept) {
             if (hashdiffGroups[tableId] && hashdiffGroups[tableId][index]) {
-                hashdiffGroups[tableId][index].concept = concept;
-                hashdiffGroups[tableId][index].hashkey = ''; // Reset hashkey when concept changes
+                const diff = hashdiffGroups[tableId][index];
+                diff.concept = concept;
+                
+                // Auto-select the hashkey for this concept (there's only one per concept)
+                if (concept) {
+                    let foundHashkey = null;
+                    Object.values(allBusinessKeyGroups).forEach((groups) => {
+                        groups.forEach((group) => {
+                            if (!group.isLink && group.businessConcept === concept && group.hashkeyName) {
+                                foundHashkey = group.hashkeyName;
+                            }
+                        });
+                    });
+                    diff.hashkey = foundHashkey || '';
+                    
+                    // Auto-generate name based on concept and table
+                    const tableMeta = currentMetadata.find(m => `${m.schema}_${m.table}` === tableId);
+                    if (tableMeta) {
+                        diff.name = generateHashdiffName(concept, tableMeta.table);
+                    }
+                } else {
+                    diff.hashkey = '';
+                }
+                
                 renderHashdiffManagement(tableId);
             }
         }
@@ -1003,10 +1153,16 @@
             return '';
         }
 
-        function generateHashdiffName(schema, table) {
-            const schemaClean = schema.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        function generateHashdiffName(concept, table) {
+            if (concept) {
+                // Format: hd_<concept>_<table>_sat
+                const conceptClean = concept.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                const tableClean = table.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                return `hd_${conceptClean}_${tableClean}_sat`;
+            }
+            // Fallback to old format if no concept
             const tableClean = table.toLowerCase().replace(/[^a-z0-9]/g, '_');
-            return `hd_${schemaClean}_${tableClean}_sat`;
+            return `hd_${tableClean}_sat`;
         }
 
         function getDefaultHashdiffColumns(tableMeta) {
@@ -1028,7 +1184,7 @@
                 hashdiffGroups[tableId] = [];
             }
             const tableMeta = currentMetadata.find(m => `${m.schema}_${m.table}` === tableId);
-            const defaultName = tableMeta ? generateHashdiffName(tableMeta.schema, tableMeta.table) : 'hd_table_sat';
+            const defaultName = tableMeta ? generateHashdiffName('', tableMeta.table) : 'hd_table_sat';
             const newGroup = {
                 name: defaultName,
                 mode: 'select_all', // 'select_all' or 'select_explicit'
@@ -1093,21 +1249,20 @@
             const diffs = hashdiffGroups[tableId] || [];
             const tableMeta = currentMetadata.find(m => `${m.schema}_${m.table}` === tableId);
             const availableColumns = tableMeta ? tableMeta.columns.map(c => c.column_name) : [];
-            const defaultName = tableMeta ? generateHashdiffName(tableMeta.schema, tableMeta.table) : 'hd_table_sat';
+            // Default name will be generated when concept is selected
+            const defaultName = 'hd_<concept>_<table>_sat';
 
             let html = '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">';
-            html += '<strong>Hashdiffs</strong>';
-            html += `<button onclick="addHashdiffGroup('${tableId}')" style="padding: 4px 8px; font-size: 11px;">+ Add Hashdiff</button>`;
+            html += '<strong>Satellites / Descriptive Data</strong>';
+            html += `<button onclick="addHashdiffGroup('${tableId}')" style="padding: 4px 8px; font-size: 11px;">+ Add Satellite</button>`;
             html += '</div>';
 
             diffs.forEach((diff, index) => {
                 html += '<div class="hashdiff-item">';
-                html += `<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">`;
-                html += `<input type="text" value="${diff.name}" placeholder="${defaultName}" 
-                         onchange="updateHashdiffName('${tableId}', ${index}, this.value)" 
-                         style="min-width: 250px;">`;
                 
-                // Concept selector - get all concepts from all hashkeys
+                // Concept selector - get all concepts from all hashkeys (must be selected first)
+                html += '<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">';
+                html += '<label style="font-weight: bold;">Business Concept:</label>';
                 const allConcepts = new Set();
                 Object.values(allBusinessKeyGroups).forEach((groups) => {
                     groups.forEach((group) => {
@@ -1118,36 +1273,32 @@
                 });
                 const sortedConcepts = Array.from(allConcepts).sort();
                 
-                html += `<select onchange="setHashdiffConcept('${tableId}', ${index}, this.value)" style="min-width: 150px;">
-                         <option value="">-- Select Concept --</option>`;
+                html += `<select onchange="setHashdiffConcept('${tableId}', ${index}, this.value)" style="min-width: 150px;" required>
+                         <option value="">-- Select Concept First --</option>`;
                 sortedConcepts.forEach(concept => {
                     html += `<option value="${concept}" ${diff.concept === concept ? 'selected' : ''}>${concept}</option>`;
                 });
                 html += '</select>';
+                html += '</div>';
                 
-                // Hashkey selector (populated based on concept - from ALL tables)
-                const hashkeysForConcept = [];
-                if (diff.concept) {
-                    Object.values(allBusinessKeyGroups).forEach((groups) => {
-                        groups.forEach((group) => {
-                            if (!group.isLink && group.businessConcept === diff.concept && group.hashkeyName) {
-                                if (!hashkeysForConcept.includes(group.hashkeyName)) {
-                                    hashkeysForConcept.push(group.hashkeyName);
-                                }
-                            }
-                        });
-                    });
+                // Hashkey is auto-selected based on concept (display only)
+                if (diff.concept && diff.hashkey) {
+                    html += '<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">';
+                    html += '<label style="font-weight: bold;">Hashkey:</label>';
+                    html += `<span style="color: var(--vscode-descriptionForeground);">${diff.hashkey}</span>`;
+                    html += '</div>';
                 }
-                hashkeysForConcept.sort();
                 
-                html += `<select onchange="setHashdiffHashkey('${tableId}', ${index}, this.value)" style="min-width: 150px;">
-                         <option value="">-- Select Hashkey --</option>`;
-                hashkeysForConcept.forEach(hk => {
-                    html += `<option value="${hk}" ${diff.hashkey === hk ? 'selected' : ''}>${hk}</option>`;
-                });
-                html += '</select>';
+                // Satellite name (auto-generated when concept is selected, but editable)
+                html += '<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">';
+                html += '<label style="font-weight: bold;">Satellite Name:</label>';
+                const displayName = diff.name || (diff.concept && tableMeta ? generateHashdiffName(diff.concept, tableMeta.table) : defaultName);
+                html += `<input type="text" value="${displayName}" placeholder="${defaultName}" 
+                         onchange="updateHashdiffName('${tableId}', ${index}, this.value)" 
+                         style="min-width: 250px;">`;
+                html += '</div>';
                 
-                html += `<button onclick="removeHashdiffGroup('${tableId}', ${index})" style="padding: 4px 8px; font-size: 11px;">Remove</button>`;
+                html += `<button onclick="removeHashdiffGroup('${tableId}', ${index})" style="padding: 4px 8px; font-size: 11px; margin-bottom: 10px;">Remove</button>`;
                 html += '</div>';
                 
                 html += '<div class="hashdiff-mode-selector">';
@@ -1335,6 +1486,7 @@
                             <span>${tableMeta.columns.length} columns</span>
                         </div>
                         <div class="hashkey-management"></div>
+                        <div class="link-management"></div>
                         <div class="hashdiff-management"></div>
                         <div class="technical-columns">
                             <div class="technical-column-group">
@@ -1392,10 +1544,11 @@
 
             container.innerHTML = html;
             
-            // Render hashkey and hashdiff management for each table
+            // Render hashkey, link, and hashdiff management for each table
             metadata.forEach(tableMeta => {
                 const tableId = `${tableMeta.schema}_${tableMeta.table}`;
                 renderHashkeyManagement(tableId);
+                renderLinkManagement(tableId);
                 renderHashdiffManagement(tableId);
                 updateColumnDisplay(tableId);
             });
@@ -1439,9 +1592,8 @@
                 case 'metadataLoaded':
                     clearError();
                     displayMetadata(message.data);
-                    document.getElementById('load-btn').disabled = false;
-                    document.getElementById('export-new-btn').disabled = false;
-                    document.getElementById('browse-db-btn').disabled = false;
+                    const loadBtn = document.getElementById('load-btn');
+                    if (loadBtn) loadBtn.disabled = false;
                     break;
                 case 'saveSuccess':
                     vscode.postMessage({
