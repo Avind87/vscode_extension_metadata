@@ -367,7 +367,9 @@
     <div class="controls">
         <button id="load-btn" onclick="loadMetadata()">Load Metadata</button>
         <button id="save-btn" onclick="saveMetadata()" disabled>Save Metadata</button>
-        <button id="export-btn" onclick="exportCSV()" disabled class="secondary">Export to CSV</button>
+        <button id="export-btn" onclick="exportCSV()" disabled class="secondary">Export to CSV (Legacy)</button>
+        <button id="export-new-btn" onclick="exportNewFormatCSV()" disabled class="secondary">Export to CSV (New Format)</button>
+        <button id="browse-db-btn" onclick="browseMetadataInDuckDB()" disabled class="secondary">Browse in DuckDB</button>
     </div>
 
     <div id="error-container"></div>
@@ -403,7 +405,6 @@
         let recordSourceColumns = {}; // tableId -> column name
         let loadDateColumns = {}; // tableId -> column name
         let hashdiffGroups = {}; // tableId -> array of hashdiff groups
-        let createSatellite = {}; // tableId -> boolean (whether to create satellite for this table)
         let currentTableId = null;
         let draggedHashkeyIndex = null;
         let newConceptInputs = {}; // tableId -> input element for new concept
@@ -426,6 +427,15 @@
         function exportCSV() {
             const metadata = collectMetadata();
             vscode.postMessage({ command: 'exportCSV', data: metadata });
+        }
+
+        function exportNewFormatCSV() {
+            const metadata = collectMetadata();
+            vscode.postMessage({ command: 'exportNewFormatCSV', data: metadata });
+        }
+
+        function browseMetadataInDuckDB() {
+            vscode.postMessage({ command: 'browseMetadataInDuckDB' });
         }
 
         function navigateToTable(tableId) {
@@ -955,8 +965,18 @@
             updateColumnDisplay(tableId);
         }
 
-        function setCreateSatellite(tableId, enabled) {
-            createSatellite[tableId] = enabled;
+        function setHashdiffConcept(tableId, index, concept) {
+            if (hashdiffGroups[tableId] && hashdiffGroups[tableId][index]) {
+                hashdiffGroups[tableId][index].concept = concept;
+                hashdiffGroups[tableId][index].hashkey = ''; // Reset hashkey when concept changes
+                renderHashdiffManagement(tableId);
+            }
+        }
+
+        function setHashdiffHashkey(tableId, index, hashkey) {
+            if (hashdiffGroups[tableId] && hashdiffGroups[tableId][index]) {
+                hashdiffGroups[tableId][index].hashkey = hashkey;
+            }
         }
 
         function getColumnContainedIn(tableId, columnName) {
@@ -1014,6 +1034,8 @@
                 mode: 'select_all', // 'select_all' or 'select_explicit'
                 excludedColumns: [],
                 includedColumns: [],
+                concept: '', // Business concept this hashdiff belongs to
+                hashkey: '', // Hashkey this hashdiff belongs to
                 order: hashdiffGroups[tableId].length + 1
             };
             hashdiffGroups[tableId].push(newGroup);
@@ -1080,10 +1102,51 @@
 
             diffs.forEach((diff, index) => {
                 html += '<div class="hashdiff-item">';
-                html += `<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">`;
+                html += `<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">`;
                 html += `<input type="text" value="${diff.name}" placeholder="${defaultName}" 
                          onchange="updateHashdiffName('${tableId}', ${index}, this.value)" 
                          style="min-width: 250px;">`;
+                
+                // Concept selector - get all concepts from all hashkeys
+                const allConcepts = new Set();
+                Object.values(allBusinessKeyGroups).forEach((groups) => {
+                    groups.forEach((group) => {
+                        if (group.businessConcept && !group.isLink) {
+                            allConcepts.add(group.businessConcept);
+                        }
+                    });
+                });
+                const sortedConcepts = Array.from(allConcepts).sort();
+                
+                html += `<select onchange="setHashdiffConcept('${tableId}', ${index}, this.value)" style="min-width: 150px;">
+                         <option value="">-- Select Concept --</option>`;
+                sortedConcepts.forEach(concept => {
+                    html += `<option value="${concept}" ${diff.concept === concept ? 'selected' : ''}>${concept}</option>`;
+                });
+                html += '</select>';
+                
+                // Hashkey selector (populated based on concept - from ALL tables)
+                const hashkeysForConcept = [];
+                if (diff.concept) {
+                    Object.values(allBusinessKeyGroups).forEach((groups) => {
+                        groups.forEach((group) => {
+                            if (!group.isLink && group.businessConcept === diff.concept && group.hashkeyName) {
+                                if (!hashkeysForConcept.includes(group.hashkeyName)) {
+                                    hashkeysForConcept.push(group.hashkeyName);
+                                }
+                            }
+                        });
+                    });
+                }
+                hashkeysForConcept.sort();
+                
+                html += `<select onchange="setHashdiffHashkey('${tableId}', ${index}, this.value)" style="min-width: 150px;">
+                         <option value="">-- Select Hashkey --</option>`;
+                hashkeysForConcept.forEach(hk => {
+                    html += `<option value="${hk}" ${diff.hashkey === hk ? 'selected' : ''}>${hk}</option>`;
+                });
+                html += '</select>';
+                
                 html += `<button onclick="removeHashdiffGroup('${tableId}', ${index})" style="padding: 4px 8px; font-size: 11px;">Remove</button>`;
                 html += '</div>';
                 
@@ -1179,7 +1242,7 @@
                 const tableId = `${schemaName}_${tableName}`;
                 const rows = section.querySelectorAll('tbody tr');
                 
-                const businessConcept = section.querySelector('.business-concept-select')?.value || '';
+                const businessConcept = ''; // Business concept is now only at hashdiff level
                 const businessKeyGroups = (allBusinessKeyGroups[tableId] || []).sort((a, b) => a.order - b.order);
                 const hashdiffGroupsData = hashdiffGroups[tableId] || [];
                 
@@ -1214,7 +1277,6 @@
                     businessConcept: businessConcept,
                     businessKeyGroups: businessKeyGroups,
                     hashdiffGroups: hashdiffGroupsData,
-                    createSatellite: createSatellite[tableId] || false,
                     columns: columns
                 });
             });
@@ -1249,9 +1311,6 @@
                 if (!hashdiffGroups[tableId]) {
                     hashdiffGroups[tableId] = [];
                 }
-                if (createSatellite[tableId] === undefined) {
-                    createSatellite[tableId] = false; // Default to false
-                }
             });
 
             // Populate table navigation
@@ -1274,22 +1333,6 @@
                         <div class="table-header">
                             <h2>${tableMeta.schema}.${tableMeta.table}</h2>
                             <span>${tableMeta.columns.length} columns</span>
-                        </div>
-                        <div class="business-concept-selector">
-                            <label>Business Concept:</label>
-                            <select class="business-concept-select" onchange="handleBusinessConceptChange(this, '${tableId}')">
-                                <option value="">-- Select Concept --</option>
-                                <option value="__ADD_NEW__">-- Add New Concept --</option>
-                                ${businessConcepts.map(c => 
-                                    `<option value="${c}">${c}</option>`
-                                ).join('')}
-                            </select>
-                        </div>
-                        <div class="satellite-option" style="margin-bottom: 15px; padding: 10px; background-color: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-editorWidget-border); border-radius: 4px;">
-                            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" id="create-satellite-${tableId}" onchange="setCreateSatellite('${tableId}', this.checked)" ${createSatellite[tableId] ? 'checked' : ''}>
-                                <span>Create Satellite for this table</span>
-                            </label>
                         </div>
                         <div class="hashkey-management"></div>
                         <div class="hashdiff-management"></div>
@@ -1383,10 +1426,22 @@
             const message = event.data;
             
             switch (message.command) {
+                case 'dbPath':
+                    updateDbPath(message.path);
+                    break;
+                case 'requestMetadata':
+                    const metadata = collectMetadata();
+                    vscode.postMessage({
+                        command: 'metadataResponse',
+                        data: metadata
+                    });
+                    break;
                 case 'metadataLoaded':
                     clearError();
                     displayMetadata(message.data);
                     document.getElementById('load-btn').disabled = false;
+                    document.getElementById('export-new-btn').disabled = false;
+                    document.getElementById('browse-db-btn').disabled = false;
                     break;
                 case 'saveSuccess':
                     vscode.postMessage({
@@ -1407,13 +1462,6 @@
             }
         });
 
-        // Handle DB path update
-        window.addEventListener('message', event => {
-            const message = event.data;
-            if (message.command === 'dbPath') {
-                updateDbPath(message.path);
-            }
-        });
 
         // Initialize
         vscode.postMessage({ command: 'ready' });

@@ -77,6 +77,35 @@ export class MetadataEditorPanel {
                     case 'exportCSV':
                         await this._exportCSV(message.data);
                         break;
+                    case 'exportNewFormatCSV':
+                        // Use data if provided, otherwise request it
+                        if (message.data) {
+                            await this._exportNewFormatCSV(message.data);
+                        } else {
+                            // Request metadata from webview
+                            this._panel.webview.postMessage({ command: 'requestMetadata' });
+                            // Wait for response with timeout
+                            let exportListener: vscode.Disposable | null = null;
+                            const exportTimeout = setTimeout(() => {
+                                if (exportListener) {
+                                    exportListener.dispose();
+                                }
+                                vscode.window.showErrorMessage('Timeout waiting for metadata from webview');
+                            }, 10000);
+                            exportListener = this._panel.webview.onDidReceiveMessage(async (msg) => {
+                                if (msg.command === 'metadataResponse') {
+                                    clearTimeout(exportTimeout);
+                                    if (exportListener) {
+                                        exportListener.dispose();
+                                    }
+                                    await this._exportNewFormatCSV(msg.data);
+                                }
+                            });
+                        }
+                        break;
+                    case 'browseMetadataInDuckDB':
+                        await this._browseMetadataInDuckDB();
+                        break;
                     case 'alert':
                         vscode.window.showErrorMessage(message.text);
                         break;
@@ -145,7 +174,7 @@ export class MetadataEditorPanel {
             }
 
             // Convert data to TableMetadata format
-            const tables: TableMetadata[] = this._convertToTableMetadata(data);
+            const tables: TableMetadata[] = await this._convertToTableMetadata(data);
 
             // Export each entity type to CSV using CSVExporter
             const exports = [
@@ -174,7 +203,120 @@ export class MetadataEditorPanel {
         }
     }
 
-    private _convertToTableMetadata(data: any): TableMetadata[] {
+    private async _exportNewFormatCSV(data: any) {
+        try {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                vscode.window.showErrorMessage('No workspace folder open');
+                return;
+            }
+
+            // Show save dialog to select output directory
+            const outputDir = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                openLabel: 'Select Output Directory'
+            });
+
+            if (!outputDir || outputDir.length === 0) {
+                return;
+            }
+
+            // Convert data to TableMetadata format
+            const tables: TableMetadata[] = await this._convertToTableMetadata(data);
+
+            // Export using the new information_schema format
+            const csvContent = CSVExporter.exportInformationSchemaFormat(tables);
+            const filePath = path.join(outputDir[0].fsPath, 'information_schema_columns.csv');
+            fs.writeFileSync(filePath, csvContent);
+
+            vscode.window.showInformationMessage('Successfully exported CSV in new format');
+            this._panel.webview.postMessage({
+                command: 'exportSuccess'
+            });
+        } catch (error: any) {
+            vscode.window.showErrorMessage(`Error exporting CSV: ${error.message}`);
+            console.error('Export error:', error);
+        }
+    }
+
+    private async _browseMetadataInDuckDB() {
+        try {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                vscode.window.showErrorMessage('No workspace folder open');
+                return;
+            }
+
+            // Request metadata from webview and wait for response
+            return new Promise<void>((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    listener.dispose();
+                    vscode.window.showErrorMessage('Timeout waiting for metadata from webview');
+                    reject(new Error('Timeout'));
+                }, 10000);
+
+                const listener = this._panel.webview.onDidReceiveMessage(async (message) => {
+                    if (message.command === 'metadataResponse') {
+                        clearTimeout(timeout);
+                        listener.dispose();
+                        
+                        try {
+                            // Convert to TableMetadata format
+                            const tables: TableMetadata[] = await this._convertToTableMetadata(message.data);
+
+                            // Export to CSV first
+                            const csvContent = CSVExporter.exportInformationSchemaFormat(tables);
+                            const csvPath = path.join(workspaceFolders[0].uri.fsPath, 'metadata_browse.csv');
+                            fs.writeFileSync(csvPath, csvContent);
+
+                            // Create DuckDB file and import CSV
+                            const metadataDbPath = path.join(workspaceFolders[0].uri.fsPath, 'metadata_browse.duckdb');
+                            if (fs.existsSync(metadataDbPath)) {
+                                fs.unlinkSync(metadataDbPath);
+                            }
+
+                            const duckdb = require('duckdb');
+                            const db = new duckdb.Database(metadataDbPath);
+                            const conn = db.connect();
+                            
+                            await new Promise<void>((resolve, reject) => {
+                                conn.run(`CREATE TABLE metadata AS SELECT * FROM read_csv_auto('${csvPath.replace(/'/g, "''")}')`, (err: any) => {
+                                    if (err) {
+                                        reject(err);
+                                    } else {
+                                        resolve();
+                                    }
+                                });
+                            });
+
+                            conn.close();
+                            db.close();
+
+                            // Open the DuckDB file
+                            const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(metadataDbPath));
+                            await vscode.window.showTextDocument(doc);
+
+                            vscode.window.showInformationMessage('Metadata database created and opened');
+                            resolve();
+                        } catch (error: any) {
+                            vscode.window.showErrorMessage(`Error creating metadata database: ${error.message}`);
+                            reject(error);
+                        }
+                    }
+                });
+
+                // Request metadata
+                this._panel.webview.postMessage({ command: 'requestMetadata' });
+            });
+        } catch (error: any) {
+            vscode.window.showErrorMessage(`Error: ${error.message}`);
+            console.error('Browse error:', error);
+        }
+    }
+
+    private async _convertToTableMetadata(data: any): Promise<TableMetadata[]> {
         // Convert the data structure from webview to TableMetadata format
         if (!data.tables || !Array.isArray(data.tables)) {
             return [];
@@ -233,10 +375,9 @@ export class MetadataEditorPanel {
         try {
             // Read the HTML file
             const htmlContent = fs.readFileSync(htmlPath, 'utf-8');
-            // Replace placeholders
+            // Replace placeholders - simple replacement like the working version
             const htmlWithPaths = htmlContent
-                .replace(/{{DB_PATH}}/g, this._dbPath)
-                .replace(/{{CSRF_TOKEN}}/g, webview.cspSource);
+                .replace(/{{DB_PATH}}/g, this._dbPath);
             
             return htmlWithPaths;
         } catch (error) {
@@ -247,7 +388,7 @@ export class MetadataEditorPanel {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TurboVault Metadata Editor</title>
+    <title>Data Vault 2.1 Metadata Prep App</title>
     <style>
         body {
             font-family: var(--vscode-font-family);
@@ -300,7 +441,7 @@ export class MetadataEditorPanel {
 </head>
 <body>
     <div class="header">
-        <h1>TurboVault Metadata Editor</h1>
+        <h1>Data Vault 2.1 Metadata Prep App</h1>
         <p>Database: ${this._dbPath}</p>
     </div>
     
