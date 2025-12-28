@@ -34,6 +34,7 @@ export interface TableMetadata {
     table: string;
     businessConcept?: string; // Business concept (Customer, Order, etc.)
     businessKeyGroups?: BusinessKeyGroup[]; // Groups of business keys with hashkey names
+    hashdiffGroups?: any[]; // Hashdiff groups (satellites)
     createSatellite?: boolean; // Whether to create a satellite for this table
     columns: ColumnMetadata[];
 }
@@ -180,6 +181,7 @@ export class CSVExporter {
         tables.forEach(table => {
             // Create satellites based on hashdiffs
             const hashdiffGroups = (table as any).hashdiffGroups || [];
+            console.log(`Table ${table.schema}.${table.table} has ${hashdiffGroups.length} hashdiff groups`);
             if (hashdiffGroups.length === 0) {
                 return; // Skip tables without hashdiffs
             }
@@ -197,17 +199,43 @@ export class CSVExporter {
             const loadDateCol = table.columns.find(c => c.isLoadDate)?.column || '';
 
             // Process each hashdiff group
-            hashdiffGroups.forEach((hashdiff: any) => {
-                if (!hashdiff.concept || !hashdiff.hashkey) {
-                    return; // Skip hashdiffs without concept/hashkey
+            hashdiffGroups.forEach((hashdiff: any, diffIndex: number) => {
+                console.log(`Hashdiff ${diffIndex}:`, JSON.stringify(hashdiff, null, 2));
+                if (!hashdiff.concept) {
+                    console.log(`Skipping hashdiff ${diffIndex} - missing concept (${hashdiff.concept})`);
+                    return; // Skip hashdiffs without concept
+                }
+                
+                // If hashkey is not set, try to find it from the concept
+                if (!hashdiff.hashkey) {
+                    // Find the hashkey for this concept
+                    if (table.businessKeyGroups) {
+                        table.businessKeyGroups.forEach(group => {
+                            if (!group.isLink && group.businessConcept === hashdiff.concept && group.hashkeyName) {
+                                hashdiff.hashkey = group.hashkeyName;
+                                console.log(`Auto-selected hashkey ${hashdiff.hashkey} for concept ${hashdiff.concept}`);
+                            }
+                        });
+                    }
+                    
+                    if (!hashdiff.hashkey) {
+                        console.log(`Skipping hashdiff ${diffIndex} - no hashkey found for concept (${hashdiff.concept})`);
+                        return; // Skip if still no hashkey
+                    }
                 }
 
                 // Get columns for this hashdiff
                 const hashdiffColumns = new Set<string>();
-                if (hashdiff.mode === 'select_all') {
+                const mode = hashdiff.mode || 'select_all';
+                const excludedColumns = hashdiff.excludedColumns || [];
+                const includedColumns = hashdiff.includedColumns || [];
+                
+                console.log(`Hashdiff mode: ${mode}, excluded: ${excludedColumns.length}, included: ${includedColumns.length}`);
+                
+                if (mode === 'select_all') {
                     // Include all columns except excluded ones, business keys, record source, load date
                     table.columns.forEach(col => {
-                        if (!hashdiff.excludedColumns.includes(col.column) &&
+                        if (!excludedColumns.includes(col.column) &&
                             !businessKeyColumns.has(col.column) &&
                             col.column !== recordSourceCol &&
                             col.column !== loadDateCol) {
@@ -216,16 +244,19 @@ export class CSVExporter {
                     });
                 } else {
                     // Include only explicitly selected columns
-                    hashdiff.includedColumns.forEach((col: string) => hashdiffColumns.add(col));
+                    includedColumns.forEach((col: string) => hashdiffColumns.add(col));
                 }
 
+                console.log(`Hashdiff ${diffIndex} has ${hashdiffColumns.size} columns`);
                 if (hashdiffColumns.size === 0) {
+                    console.log(`Skipping hashdiff ${diffIndex} - no columns`);
                     return; // Skip empty hashdiffs
                 }
 
                 // Find the hub name from the hashkey
                 const hubName = hashdiff.hashkey.replace(/^hk_/, '').replace(/_h$/, '');
                 const satelliteName = hashdiff.name.replace(/^hd_/, '').replace(/_sat$/, '');
+                console.log(`Creating satellite: ${satelliteName} for hub: ${hubName} with ${hashdiffColumns.size} columns`);
                 const satelliteIdentifier = `S_${satelliteName}`;
                 const parentIdentifier = `H_${hubName}`;
                 const parentHashkey = hashdiff.hashkey;
@@ -285,9 +316,10 @@ export class CSVExporter {
                     
                     // Each referenced hashkey becomes a row in the link
                     (linkGroup.referencedHashkeys || []).forEach((refHashkey, refIndex) => {
-                        // Find which table this hashkey belongs to
+                        // Find which table this hashkey belongs to and get its columns
                         let hubIdentifier = '';
                         let hubName = '';
+                        let hashkeyColumns: string[] = [];
                         
                         tables.forEach(t => {
                             if (t.businessKeyGroups) {
@@ -297,19 +329,37 @@ export class CSVExporter {
                                 if (matchingGroup) {
                                     hubName = this.generateHubName(t.table, t.businessConcept);
                                     hubIdentifier = `H_${hubName}`;
+                                    // Get columns from the referenced hashkey
+                                    hashkeyColumns = matchingGroup.columns || [];
                                 }
                             }
                         });
                         
-                        if (hubIdentifier) {
+                        // Create a row for each column in the referenced hashkey
+                        if (hubIdentifier && hashkeyColumns.length > 0) {
+                            hashkeyColumns.forEach((col, colIndex) => {
+                                rows.push([
+                                    linkIdentifier,
+                                    linkName,
+                                    sourceIdentifier,
+                                    col, // Source column from referenced hashkey
+                                    hubIdentifier,
+                                    refHashkey,
+                                    col, // Target column from referenced hashkey
+                                    linkGroup.hashkeyName || linkName,
+                                    this.extractGroupName(table.schema)
+                                ]);
+                            });
+                        } else if (hubIdentifier) {
+                            // Fallback if no columns found
                             rows.push([
                                 linkIdentifier,
                                 linkName,
                                 sourceIdentifier,
-                                '', // Source column - not applicable for link hashkeys
+                                '', // Source column
                                 hubIdentifier,
                                 refHashkey,
-                                '', // Target column - not applicable
+                                '', // Target column
                                 linkGroup.hashkeyName || linkName,
                                 this.extractGroupName(table.schema)
                             ]);

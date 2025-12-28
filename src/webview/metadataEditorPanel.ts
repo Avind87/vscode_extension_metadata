@@ -77,35 +77,6 @@ export class MetadataEditorPanel {
                     case 'exportCSV':
                         await this._exportCSV(message.data);
                         break;
-                    case 'exportNewFormatCSV':
-                        // Use data if provided, otherwise request it
-                        if (message.data) {
-                            await this._exportNewFormatCSV(message.data);
-                        } else {
-                            // Request metadata from webview
-                            this._panel.webview.postMessage({ command: 'requestMetadata' });
-                            // Wait for response with timeout
-                            let exportListener: vscode.Disposable | null = null;
-                            const exportTimeout = setTimeout(() => {
-                                if (exportListener) {
-                                    exportListener.dispose();
-                                }
-                                vscode.window.showErrorMessage('Timeout waiting for metadata from webview');
-                            }, 10000);
-                            exportListener = this._panel.webview.onDidReceiveMessage(async (msg) => {
-                                if (msg.command === 'metadataResponse') {
-                                    clearTimeout(exportTimeout);
-                                    if (exportListener) {
-                                        exportListener.dispose();
-                                    }
-                                    await this._exportNewFormatCSV(msg.data);
-                                }
-                            });
-                        }
-                        break;
-                    case 'browseMetadataInDuckDB':
-                        await this._browseMetadataInDuckDB();
-                        break;
                     case 'alert':
                         vscode.window.showErrorMessage(message.text);
                         break;
@@ -141,15 +112,30 @@ export class MetadataEditorPanel {
                 return;
             }
 
-            const savePath = path.join(workspaceFolders[0].uri.fsPath, 'metadata.json');
-            fs.writeFileSync(savePath, JSON.stringify(data, null, 2));
+            // Show save dialog to select file location
+            const saveUri = await vscode.window.showSaveDialog({
+                defaultUri: vscode.Uri.joinPath(workspaceFolders[0].uri, 'metadata.json'),
+                filters: {
+                    'JSON Files': ['json'],
+                    'All Files': ['*']
+                },
+                saveLabel: 'Save Metadata'
+            });
 
-            vscode.window.showInformationMessage('Metadata saved successfully');
+            if (!saveUri) {
+                return; // User cancelled
+            }
+
+            fs.writeFileSync(saveUri.fsPath, JSON.stringify(data, null, 2));
+
+            vscode.window.showInformationMessage(`Metadata saved to ${saveUri.fsPath}`);
             this._panel.webview.postMessage({
                 command: 'saveSuccess'
             });
         } catch (error: any) {
             vscode.window.showErrorMessage(`Error saving metadata: ${error.message}`);
+            console.error('Save metadata error:', error);
+            console.error('Error stack:', error.stack);
         }
     }
 
@@ -251,16 +237,22 @@ export class MetadataEditorPanel {
 
             // Request metadata from webview and wait for response
             return new Promise<void>((resolve, reject) => {
+                let listener: vscode.Disposable | null = null;
+                
                 const timeout = setTimeout(() => {
-                    listener.dispose();
+                    if (listener) {
+                        listener.dispose();
+                    }
                     vscode.window.showErrorMessage('Timeout waiting for metadata from webview');
                     reject(new Error('Timeout'));
                 }, 10000);
 
-                const listener = this._panel.webview.onDidReceiveMessage(async (message) => {
+                listener = this._panel.webview.onDidReceiveMessage(async (message) => {
                     if (message.command === 'metadataResponse') {
                         clearTimeout(timeout);
-                        listener.dispose();
+                        if (listener) {
+                            listener.dispose();
+                        }
                         
                         try {
                             // Convert to TableMetadata format
@@ -281,25 +273,23 @@ export class MetadataEditorPanel {
                             const db = new duckdb.Database(metadataDbPath);
                             const conn = db.connect();
                             
-                            await new Promise<void>((resolve, reject) => {
-                                conn.run(`CREATE TABLE metadata AS SELECT * FROM read_csv_auto('${csvPath.replace(/'/g, "''")}')`, (err: any) => {
-                                    if (err) {
-                                        reject(err);
-                                    } else {
-                                        resolve();
-                                    }
-                                });
-                            });
+                            // DuckDB run is synchronous, but we need to handle errors
+                            try {
+                                conn.run(`CREATE TABLE metadata AS SELECT * FROM read_csv_auto('${csvPath.replace(/'/g, "''")}')`);
+                                conn.close();
+                                db.close();
 
-                            conn.close();
-                            db.close();
+                                // Open the DuckDB file
+                                const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(metadataDbPath));
+                                await vscode.window.showTextDocument(doc);
 
-                            // Open the DuckDB file
-                            const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(metadataDbPath));
-                            await vscode.window.showTextDocument(doc);
-
-                            vscode.window.showInformationMessage('Metadata database created and opened');
-                            resolve();
+                                vscode.window.showInformationMessage('Metadata database created and opened');
+                                resolve();
+                            } catch (dbError: any) {
+                                conn.close();
+                                db.close();
+                                throw dbError;
+                            }
                         } catch (error: any) {
                             vscode.window.showErrorMessage(`Error creating metadata database: ${error.message}`);
                             reject(error);
@@ -342,6 +332,7 @@ export class MetadataEditorPanel {
                 table: table.table,
                 businessConcept: table.businessConcept || undefined,
                 businessKeyGroups: table.businessKeyGroups || undefined,
+                hashdiffGroups: (table as any).hashdiffGroups || undefined,
                 columns: columns
             };
         });
